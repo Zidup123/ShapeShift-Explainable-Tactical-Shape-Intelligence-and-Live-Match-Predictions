@@ -1,0 +1,44 @@
+# Claude instructions (local only)
+CLAUDE.md
+
+# Environment variables and secrets
+.env
+.env.*
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Data files (generated — run generate_season.py to recreate)
+data/
+
+# Node / React
+node_modules/
+web/node_modules/
+web/dist/
+web/build/
+.next/
+npm-debug.log*
+yarn-error.log*
+
+# Azure / cloud
+.azure/
+*.publishsettings
+local.settings.json
+
+# macOS
+.DS_Store
