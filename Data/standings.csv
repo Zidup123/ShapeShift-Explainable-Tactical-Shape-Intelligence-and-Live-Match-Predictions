@@ -1,0 +1,9 @@
+pos,team_id,team,played,won,drawn,lost,gf,ga,gd,points,xg_for,xg_against
+1,THO,Thornfield Rovers,14,6,5,3,21,18,3,23,19.9,18.2
+2,ASH,Ashgrove United,14,6,3,5,20,16,4,21,17.6,20.1
+3,CAL,Calder Wanderers,14,7,0,7,19,21,-2,21,17.8,18.8
+4,MAR,Marlowe City,14,5,4,5,19,19,0,19,21.7,16.5
+5,WES,Westhaven Albion,14,3,8,3,12,10,2,17,14.1,17.6
+6,RED,Redcliffe Town,14,4,5,5,14,15,-1,17,18.1,18.7
+7,SIL,Silverbrook FC,14,5,2,7,19,21,-2,17,17.8,19.1
+8,EAS,Eastmoor Athletic,14,4,5,5,12,16,-4,17,20.7,18.6

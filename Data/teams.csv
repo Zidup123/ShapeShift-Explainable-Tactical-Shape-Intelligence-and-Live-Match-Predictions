@@ -1,0 +1,9 @@
+id,name,attack,defence,control,counter,passing,press,block,tempo
+THO,Thornfield Rovers,1.08,1.04,1.1,0.9,1.05,1.05,1.1,1.08
+EAS,Eastmoor Athletic,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0
+RED,Redcliffe Town,0.95,1.02,0.95,1.1,0.95,1.05,0.95,0.98
+MAR,Marlowe City,1.12,1.1,1.15,0.85,1.1,1.15,1.12,1.12
+ASH,Ashgrove United,0.98,0.96,1.0,1.05,1.0,0.95,1.0,1.0
+CAL,Calder Wanderers,0.92,0.92,0.88,1.25,0.92,0.9,0.88,0.92
+SIL,Silverbrook FC,1.02,0.94,1.02,1.0,1.0,1.1,1.05,1.02
+WES,Westhaven Albion,0.9,0.9,0.95,1.0,0.98,0.95,0.95,0.95

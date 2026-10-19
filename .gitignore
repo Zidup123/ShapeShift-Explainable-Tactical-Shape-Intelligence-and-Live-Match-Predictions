@@ -23,9 +23,6 @@ build/
 htmlcov/
 *.log
 
-# Data files (generated — run generate_season.py to recreate)
-data/
-
 # Node / React
 node_modules/
 web/node_modules/
