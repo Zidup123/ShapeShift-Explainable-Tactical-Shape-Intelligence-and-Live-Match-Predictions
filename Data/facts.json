@@ -1,0 +1,557 @@
+{
+  "F001": {
+    "claim": "Ashgrove United (synthetic) switched from 4-2-3-1 to 3-4-3 at matchday 10. xG for declined from 1.377 to 1.038 per match (delta -0.339, n=9+5 matches).",
+    "numbers": {
+      "xg_for_before": 1.377,
+      "xg_for_after": 1.038,
+      "xg_for_delta": -0.339,
+      "xg_against_before": 1.363,
+      "xg_against_after": 1.562,
+      "change_matchday": 10,
+      "before_matches": 9,
+      "after_matches": 5
+    },
+    "evidence_ids": [
+      "M004",
+      "M007",
+      "M010",
+      "M013",
+      "M018",
+      "M023",
+      "M028",
+      "M032",
+      "M035",
+      "M038",
+      "M041",
+      "M046",
+      "M051",
+      "M056"
+    ],
+    "sample_size": 14,
+    "confidence": "ok"
+  },
+  "F002": {
+    "claim": "Calder Wanderers (synthetic) switched from 4-4-2 to 4-3-3 at matchday 8. xG for declined from 1.34 to 1.204 per match (delta -0.136, n=7+7 matches).",
+    "numbers": {
+      "xg_for_before": 1.34,
+      "xg_for_after": 1.204,
+      "xg_for_delta": -0.136,
+      "xg_against_before": 1.489,
+      "xg_against_after": 1.204,
+      "change_matchday": 8,
+      "before_matches": 7,
+      "after_matches": 7
+    },
+    "evidence_ids": [
+      "M003",
+      "M006",
+      "M009",
+      "M014",
+      "M019",
+      "M024",
+      "M028",
+      "M031",
+      "M034",
+      "M037",
+      "M042",
+      "M047",
+      "M052",
+      "M056"
+    ],
+    "sample_size": 14,
+    "confidence": "ok"
+  },
+  "F003": {
+    "claim": "Eastmoor Athletic (synthetic) switched from 4-4-2 to 4-2-3-1 at matchday 9. xG for improved from 1.33 to 1.67 per match (delta +0.340, n=8+6 matches).",
+    "numbers": {
+      "xg_for_before": 1.33,
+      "xg_for_after": 1.67,
+      "xg_for_delta": 0.34,
+      "xg_against_before": 1.528,
+      "xg_against_after": 1.06,
+      "change_matchday": 9,
+      "before_matches": 8,
+      "after_matches": 6
+    },
+    "evidence_ids": [
+      "M002",
+      "M007",
+      "M012",
+      "M016",
+      "M019",
+      "M022",
+      "M025",
+      "M030",
+      "M035",
+      "M040",
+      "M044",
+      "M047",
+      "M050",
+      "M053"
+    ],
+    "sample_size": 14,
+    "confidence": "ok"
+  },
+  "F004": {
+    "claim": "Marlowe City (synthetic) switched from 4-3-3 to 2-3-5 at matchday 6. xG for improved from 1.518 to 1.569 per match (delta +0.051, n=5+9 matches).",
+    "numbers": {
+      "xg_for_before": 1.518,
+      "xg_for_after": 1.569,
+      "xg_for_delta": 0.051,
+      "xg_against_before": 1.304,
+      "xg_against_after": 1.106,
+      "change_matchday": 6,
+      "before_matches": 5,
+      "after_matches": 9
+    },
+    "evidence_ids": [
+      "M004",
+      "M008",
+      "M011",
+      "M014",
+      "M017",
+      "M022",
+      "M027",
+      "M032",
+      "M036",
+      "M039",
+      "M042",
+      "M045",
+      "M050",
+      "M055"
+    ],
+    "sample_size": 14,
+    "confidence": "ok"
+  },
+  "F005": {
+    "claim": "Marlowe City (synthetic) switched from 2-3-5 to 4-3-3 at matchday 11. xG for improved from 1.508 to 1.658 per match (delta +0.150, n=10+4 matches).",
+    "numbers": {
+      "xg_for_before": 1.508,
+      "xg_for_after": 1.658,
+      "xg_for_delta": 0.15,
+      "xg_against_before": 1.057,
+      "xg_against_after": 1.478,
+      "change_matchday": 11,
+      "before_matches": 10,
+      "after_matches": 4
+    },
+    "evidence_ids": [
+      "M004",
+      "M008",
+      "M011",
+      "M014",
+      "M017",
+      "M022",
+      "M027",
+      "M032",
+      "M036",
+      "M039",
+      "M042",
+      "M045",
+      "M050",
+      "M055"
+    ],
+    "sample_size": 14,
+    "confidence": "tentative"
+  },
+  "F006": {
+    "claim": "Redcliffe Town (synthetic) switched from 3-5-2 to 4-4-2 at matchday 8. xG for improved from 1.269 to 1.311 per match (delta +0.042, n=7+7 matches).",
+    "numbers": {
+      "xg_for_before": 1.269,
+      "xg_for_after": 1.311,
+      "xg_for_delta": 0.042,
+      "xg_against_before": 1.274,
+      "xg_against_after": 1.402,
+      "change_matchday": 8,
+      "before_matches": 7,
+      "after_matches": 7
+    },
+    "evidence_ids": [
+      "M003",
+      "M008",
+      "M012",
+      "M015",
+      "M018",
+      "M021",
+      "M026",
+      "M031",
+      "M036",
+      "M040",
+      "M043",
+      "M046",
+      "M049",
+      "M054"
+    ],
+    "sample_size": 14,
+    "confidence": "ok"
+  },
+  "F007": {
+    "claim": "Silverbrook FC (synthetic) switched from 3-4-3 to 3-5-2 at matchday 7. xG for declined from 1.376 to 1.189 per match (delta -0.187, n=6+8 matches).",
+    "numbers": {
+      "xg_for_before": 1.376,
+      "xg_for_after": 1.189,
+      "xg_for_delta": -0.187,
+      "xg_against_before": 1.464,
+      "xg_against_after": 1.286,
+      "change_matchday": 7,
+      "before_matches": 6,
+      "after_matches": 8
+    },
+    "evidence_ids": [
+      "M002",
+      "M005",
+      "M010",
+      "M015",
+      "M020",
+      "M024",
+      "M027",
+      "M030",
+      "M033",
+      "M038",
+      "M043",
+      "M048",
+      "M052",
+      "M055"
+    ],
+    "sample_size": 14,
+    "confidence": "ok"
+  },
+  "F008": {
+    "claim": "Silverbrook FC (synthetic) switched from 3-5-2 to 3-4-3 at matchday 12. xG for improved from 1.158 to 1.679 per match (delta +0.521, n=11+3 matches).",
+    "numbers": {
+      "xg_for_before": 1.158,
+      "xg_for_after": 1.679,
+      "xg_for_delta": 0.521,
+      "xg_against_before": 1.357,
+      "xg_against_after": 1.383,
+      "change_matchday": 12,
+      "before_matches": 11,
+      "after_matches": 3
+    },
+    "evidence_ids": [
+      "M002",
+      "M005",
+      "M010",
+      "M015",
+      "M020",
+      "M024",
+      "M027",
+      "M030",
+      "M033",
+      "M038",
+      "M043",
+      "M048",
+      "M052",
+      "M055"
+    ],
+    "sample_size": 14,
+    "confidence": "tentative"
+  },
+  "F009": {
+    "claim": "Thornfield Rovers (synthetic) switched from 4-3-3 to 3-2-5 at matchday 7. xG for declined from 1.585 to 1.296 per match (delta -0.289, n=6+8 matches).",
+    "numbers": {
+      "xg_for_before": 1.585,
+      "xg_for_after": 1.296,
+      "xg_for_delta": -0.289,
+      "xg_against_before": 1.371,
+      "xg_against_after": 1.244,
+      "change_matchday": 7,
+      "before_matches": 6,
+      "after_matches": 8
+    },
+    "evidence_ids": [
+      "M001",
+      "M005",
+      "M009",
+      "M013",
+      "M017",
+      "M021",
+      "M025",
+      "M029",
+      "M033",
+      "M037",
+      "M041",
+      "M045",
+      "M049",
+      "M053"
+    ],
+    "sample_size": 14,
+    "confidence": "ok"
+  },
+  "F010": {
+    "claim": "Westhaven Albion (synthetic) switched from 4-1-4-1 to 3-2-5 at matchday 9. xG for declined from 1.01 to 1.009 per match (delta -0.001, n=8+6 matches).",
+    "numbers": {
+      "xg_for_before": 1.01,
+      "xg_for_after": 1.009,
+      "xg_for_delta": -0.001,
+      "xg_against_before": 1.034,
+      "xg_against_after": 1.558,
+      "change_matchday": 9,
+      "before_matches": 8,
+      "after_matches": 6
+    },
+    "evidence_ids": [
+      "M001",
+      "M006",
+      "M011",
+      "M016",
+      "M020",
+      "M023",
+      "M026",
+      "M029",
+      "M034",
+      "M039",
+      "M044",
+      "M048",
+      "M051",
+      "M054"
+    ],
+    "sample_size": 14,
+    "confidence": "ok"
+  },
+  "F011": {
+    "claim": "Ashgrove United (synthetic) with 4-2-3-1 in possession / 4-5-1 out of possession: 1.377 xG for and 1.363 xG against per match across 9 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.377,
+      "xg_against_per_match": 1.363,
+      "matches": 9
+    },
+    "evidence_ids": [],
+    "sample_size": 9,
+    "confidence": "ok"
+  },
+  "F012": {
+    "claim": "Ashgrove United (synthetic) with 3-4-3 in possession / 5-4-1 out of possession: 1.038 xG for and 1.562 xG against per match across 5 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.038,
+      "xg_against_per_match": 1.562,
+      "matches": 5
+    },
+    "evidence_ids": [],
+    "sample_size": 5,
+    "confidence": "ok"
+  },
+  "F013": {
+    "claim": "Calder Wanderers (synthetic) with 4-3-3 in possession / 5-4-1 out of possession: 1.204 xG for and 1.204 xG against per match across 7 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.204,
+      "xg_against_per_match": 1.204,
+      "matches": 7
+    },
+    "evidence_ids": [],
+    "sample_size": 7,
+    "confidence": "ok"
+  },
+  "F014": {
+    "claim": "Calder Wanderers (synthetic) with 4-4-2 in possession / 4-4-2 out of possession: 1.34 xG for and 1.489 xG against per match across 7 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.34,
+      "xg_against_per_match": 1.489,
+      "matches": 7
+    },
+    "evidence_ids": [],
+    "sample_size": 7,
+    "confidence": "ok"
+  },
+  "F015": {
+    "claim": "Eastmoor Athletic (synthetic) with 4-4-2 in possession / 4-4-2 out of possession: 1.33 xG for and 1.528 xG against per match across 8 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.33,
+      "xg_against_per_match": 1.528,
+      "matches": 8
+    },
+    "evidence_ids": [],
+    "sample_size": 8,
+    "confidence": "ok"
+  },
+  "F016": {
+    "claim": "Eastmoor Athletic (synthetic) with 4-2-3-1 in possession / 4-4-2 out of possession: 1.527 xG for and 1.098 xG against per match across 3 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.527,
+      "xg_against_per_match": 1.098,
+      "matches": 3
+    },
+    "evidence_ids": [],
+    "sample_size": 3,
+    "confidence": "tentative"
+  },
+  "F017": {
+    "claim": "Eastmoor Athletic (synthetic) with 4-2-3-1 in possession / 4-5-1 out of possession: 1.814 xG for and 1.023 xG against per match across 3 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.814,
+      "xg_against_per_match": 1.023,
+      "matches": 3
+    },
+    "evidence_ids": [],
+    "sample_size": 3,
+    "confidence": "tentative"
+  },
+  "F018": {
+    "claim": "Marlowe City (synthetic) with 4-3-3 in possession / 4-1-4-1 out of possession: 1.581 xG for and 1.381 xG against per match across 9 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.581,
+      "xg_against_per_match": 1.381,
+      "matches": 9
+    },
+    "evidence_ids": [],
+    "sample_size": 9,
+    "confidence": "ok"
+  },
+  "F019": {
+    "claim": "Marlowe City (synthetic) with 2-3-5 in possession / 4-1-4-1 out of possession: 1.498 xG for and 0.809 xG against per match across 5 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.498,
+      "xg_against_per_match": 0.809,
+      "matches": 5
+    },
+    "evidence_ids": [],
+    "sample_size": 5,
+    "confidence": "ok"
+  },
+  "F020": {
+    "claim": "Redcliffe Town (synthetic) with 3-5-2 in possession / 5-3-2 out of possession: 1.269 xG for and 1.274 xG against per match across 7 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.269,
+      "xg_against_per_match": 1.274,
+      "matches": 7
+    },
+    "evidence_ids": [],
+    "sample_size": 7,
+    "confidence": "ok"
+  },
+  "F021": {
+    "claim": "Redcliffe Town (synthetic) with 4-4-2 in possession / 4-4-2 out of possession: 1.311 xG for and 1.402 xG against per match across 7 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.311,
+      "xg_against_per_match": 1.402,
+      "matches": 7
+    },
+    "evidence_ids": [],
+    "sample_size": 7,
+    "confidence": "ok"
+  },
+  "F022": {
+    "claim": "Silverbrook FC (synthetic) with 3-4-3 in possession / 5-4-1 out of possession: 1.477 xG for and 1.437 xG against per match across 9 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.477,
+      "xg_against_per_match": 1.437,
+      "matches": 9
+    },
+    "evidence_ids": [],
+    "sample_size": 9,
+    "confidence": "ok"
+  },
+  "F023": {
+    "claim": "Silverbrook FC (synthetic) with 3-5-2 in possession / 5-3-2 out of possession: 0.895 xG for and 1.227 xG against per match across 5 matches.",
+    "numbers": {
+      "xg_for_per_match": 0.895,
+      "xg_against_per_match": 1.227,
+      "matches": 5
+    },
+    "evidence_ids": [],
+    "sample_size": 5,
+    "confidence": "ok"
+  },
+  "F024": {
+    "claim": "Thornfield Rovers (synthetic) with 3-2-5 in possession / 4-4-2 out of possession: 1.296 xG for and 1.244 xG against per match across 8 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.296,
+      "xg_against_per_match": 1.244,
+      "matches": 8
+    },
+    "evidence_ids": [],
+    "sample_size": 8,
+    "confidence": "ok"
+  },
+  "F025": {
+    "claim": "Thornfield Rovers (synthetic) with 4-3-3 in possession / 4-4-2 out of possession: 1.585 xG for and 1.371 xG against per match across 6 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.585,
+      "xg_against_per_match": 1.371,
+      "matches": 6
+    },
+    "evidence_ids": [],
+    "sample_size": 6,
+    "confidence": "ok"
+  },
+  "F026": {
+    "claim": "Westhaven Albion (synthetic) with 4-1-4-1 in possession / 4-1-4-1 out of possession: 1.01 xG for and 1.033 xG against per match across 8 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.01,
+      "xg_against_per_match": 1.033,
+      "matches": 8
+    },
+    "evidence_ids": [],
+    "sample_size": 8,
+    "confidence": "ok"
+  },
+  "F027": {
+    "claim": "Westhaven Albion (synthetic) with 3-2-5 in possession / 4-5-1 out of possession: 1.009 xG for and 1.558 xG against per match across 6 matches.",
+    "numbers": {
+      "xg_for_per_match": 1.009,
+      "xg_against_per_match": 1.558,
+      "matches": 6
+    },
+    "evidence_ids": [],
+    "sample_size": 6,
+    "confidence": "ok"
+  },
+  "F028": {
+    "claim": "Synthetic data: best zone overload = -1 \u2192 0.2083 open-play shots per possession minute across 96 possession minutes.",
+    "numbers": {
+      "overload_bucket": -1,
+      "shots_per_min": 0.2083,
+      "possession_minutes": 96
+    },
+    "evidence_ids": [],
+    "sample_size": 96,
+    "confidence": "tentative"
+  },
+  "F029": {
+    "claim": "Synthetic data: best zone overload = +0 \u2192 0.2341 open-play shots per possession minute across 2751 possession minutes.",
+    "numbers": {
+      "overload_bucket": 0,
+      "shots_per_min": 0.2341,
+      "possession_minutes": 2751
+    },
+    "evidence_ids": [],
+    "sample_size": 2751,
+    "confidence": "ok"
+  },
+  "F030": {
+    "claim": "Synthetic data: best zone overload = +1 \u2192 0.2659 open-play shots per possession minute across 2065 possession minutes.",
+    "numbers": {
+      "overload_bucket": 1,
+      "shots_per_min": 0.2659,
+      "possession_minutes": 2065
+    },
+    "evidence_ids": [],
+    "sample_size": 2065,
+    "confidence": "ok"
+  },
+  "F031": {
+    "claim": "Synthetic data: best zone overload = +2 \u2192 0.3125 open-play shots per possession minute across 128 possession minutes.",
+    "numbers": {
+      "overload_bucket": 2,
+      "shots_per_min": 0.3125,
+      "possession_minutes": 128
+    },
+    "evidence_ids": [],
+    "sample_size": 128,
+    "confidence": "ok"
+  },
+  "F032": {
+    "claim": "Prediction model (logistic regression + gradient boosting, holdout matchdays [13, 14], n=720 minutes): Brier score p_home=0.1359 (baseline 0.1143), p_away=0.1184 (baseline 0.1141).",
+    "numbers": {
+      "brier_p_home": 0.1359,
+      "brier_p_away": 0.1184,
+      "brier_counter": 0.2338,
+      "baseline_brier_home": 0.1143,
+      "baseline_brier_away": 0.1141,
+      "n_test_minutes": 720
+    },
+    "evidence_ids": [],
+    "sample_size": 720,
+    "confidence": "ok"
+  }
+}
