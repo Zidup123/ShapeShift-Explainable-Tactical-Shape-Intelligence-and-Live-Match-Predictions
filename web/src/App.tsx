@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { API } from './api'
-import { Match, PredictionPoint, Fact } from './types'
+import { Match, PredictionPoint, Fact, LiveStatPoint } from './types'
 import { useReplay } from './hooks/useReplay'
 import PitchView from './components/PitchView'
 import ReplayControls from './components/ReplayControls'
@@ -8,11 +8,15 @@ import ProbabilityTimeline from './components/ProbabilityTimeline'
 import NarrativeLowerThird from './components/NarrativeLowerThird'
 import EvidenceDrawer from './components/EvidenceDrawer'
 import MatchSelector from './components/MatchSelector'
+import MatchStatsBar from './components/MatchStatsBar'
+import PredictionMeter from './components/PredictionMeter'
+import StorylinePanel from './components/StorylinePanel'
 
 export default function App() {
   const [matches, setMatches] = useState<Match[]>([])
   const [selectedMatchId, setSelectedMatchId] = useState<string | null>(null)
   const [predictions, setPredictions] = useState<PredictionPoint[]>([])
+  const [liveStats, setLiveStats] = useState<LiveStatPoint[]>([])
   const [facts, setFacts] = useState<Record<string, Fact>>({})
   const [evidenceOpen, setEvidenceOpen] = useState(false)
   const [matchesLoading, setMatchesLoading] = useState(true)
@@ -21,8 +25,14 @@ export default function App() {
     useReplay(selectedMatchId)
 
   const selectedMatch = matches.find(m => m.match_id === selectedMatchId) ?? null
+  const homeId = selectedMatch?.home_id ?? ''
+  const awayId = selectedMatch?.away_id ?? ''
+  const homeName = selectedMatch?.home_name ?? homeId
+  const awayName = selectedMatch?.away_name ?? awayId
 
-  // Load matches on mount
+  // Current live stat at this minute
+  const currentStats = liveStats.find(s => s.minute === minute) ?? liveStats[liveStats.length - 1] ?? null
+
   useEffect(() => {
     API.getMatches()
       .then((data: Match[]) => setMatches(data))
@@ -30,53 +40,126 @@ export default function App() {
       .finally(() => setMatchesLoading(false))
   }, [])
 
-  // Load facts on mount
   useEffect(() => {
     API.getFacts()
       .then((data: Record<string, Fact>) => setFacts(data))
       .catch(() => setFacts({}))
   }, [])
 
-  // Load predictions when match selected
   useEffect(() => {
     if (!selectedMatchId) {
       setPredictions([])
+      setLiveStats([])
       return
     }
     API.getPredictions(selectedMatchId)
       .then((data: PredictionPoint[]) => setPredictions(data))
       .catch(() => setPredictions([]))
+
+    API.getLiveStats(selectedMatchId)
+      .then((data: LiveStatPoint[]) => setLiveStats(data))
+      .catch(() => setLiveStats([]))
   }, [selectedMatchId])
 
-  const homeId = selectedMatch?.home_id ?? ''
-  const awayId = selectedMatch?.away_id ?? ''
+  // Prediction at current minute
+  const currentPrediction = predictions.find(p => p.minute === minute) ?? predictions[predictions.length - 1] ?? null
 
   return (
     <div className="min-h-screen" style={{ background: '#0a0a0f' }}>
       {/* Top bar */}
-      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800">
-        <h1 className="text-xl font-bold tracking-wide text-white">ShapeShift</h1>
-        <span className="text-xs bg-yellow-700 text-yellow-100 px-2 py-1 rounded font-semibold">
-          SYNTHETIC DATA
-        </span>
+      <header className="flex items-center justify-between px-6 py-2.5 border-b border-gray-800">
+        <div className="flex items-center gap-3">
+          <h1 className="text-lg font-bold tracking-wide text-white">ShapeShift</h1>
+          <span className="text-[10px] text-gray-500 uppercase tracking-wider hidden sm:block">
+            Tactical Intelligence
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          {selectedMatch && (
+            <span className="text-sm font-semibold text-gray-200">
+              <span className="text-blue-400">{homeName}</span>
+              <span className="text-gray-400 mx-2">
+                {selectedMatch.home_goals} – {selectedMatch.away_goals}
+              </span>
+              <span className="text-red-400">{awayName}</span>
+            </span>
+          )}
+          <span className="text-[10px] bg-yellow-700 text-yellow-100 px-2 py-0.5 rounded font-semibold">
+            SYNTHETIC
+          </span>
+        </div>
       </header>
 
-      <div className="flex gap-4 p-4 max-w-screen-xl mx-auto">
-        {/* Left column: selector + pitch + controls */}
-        <div className="flex-1 min-w-0">
-          <div className="mb-3">
-            {matchesLoading ? (
-              <p className="text-gray-400 text-sm">Loading matches…</p>
-            ) : (
-              <MatchSelector
-                matches={matches}
-                selected={selectedMatchId}
-                onChange={id => setSelectedMatchId(id)}
-              />
-            )}
-          </div>
+      {/* Match selector bar */}
+      <div className="px-4 py-2 border-b border-gray-900">
+        {matchesLoading ? (
+          <p className="text-gray-500 text-xs">Loading matches…</p>
+        ) : (
+          <MatchSelector
+            matches={matches}
+            selected={selectedMatchId}
+            onChange={id => setSelectedMatchId(id)}
+          />
+        )}
+      </div>
 
-          {/* Pitch */}
+      {/* Main grid */}
+      <div className="flex gap-3 p-3 max-w-screen-2xl mx-auto">
+
+        {/* Left sidebar: prediction + stats */}
+        <div className="w-56 flex-shrink-0 flex flex-col gap-3">
+          <PredictionMeter
+            prediction={currentPrediction}
+            homeName={homeName}
+            awayName={awayName}
+          />
+          <MatchStatsBar
+            stats={currentStats}
+            homeName={homeName}
+            awayName={awayName}
+          />
+          {/* Shapes */}
+          {state && (
+            <div className="rounded-lg p-3 border border-gray-700 text-xs" style={{ background: '#111827' }}>
+              <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Shapes</div>
+              <div className="space-y-2">
+                <div>
+                  <div className="text-blue-400 font-semibold mb-0.5 truncate">{homeName}</div>
+                  <div className="flex justify-between text-gray-300">
+                    <span className="text-gray-500 text-[10px]">in poss</span>
+                    <span>{state.shapes.home.in_possession}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-300">
+                    <span className="text-gray-500 text-[10px]">out poss</span>
+                    <span>{state.shapes.home.out_of_possession}</span>
+                  </div>
+                  <div className="mt-1 h-1 rounded-full bg-gray-800 overflow-hidden">
+                    <div className="h-full bg-blue-600 transition-all duration-500" style={{ width: `${state.shapes.home.fit_score * 100}%` }} />
+                  </div>
+                  <div className="text-[9px] text-gray-600 text-right">fit {(state.shapes.home.fit_score * 100).toFixed(0)}%</div>
+                </div>
+                <div className="border-t border-gray-800 pt-2">
+                  <div className="text-red-400 font-semibold mb-0.5 truncate">{awayName}</div>
+                  <div className="flex justify-between text-gray-300">
+                    <span className="text-gray-500 text-[10px]">in poss</span>
+                    <span>{state.shapes.away.in_possession}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-300">
+                    <span className="text-gray-500 text-[10px]">out poss</span>
+                    <span>{state.shapes.away.out_of_possession}</span>
+                  </div>
+                  <div className="mt-1 h-1 rounded-full bg-gray-800 overflow-hidden">
+                    <div className="h-full bg-red-700 transition-all duration-500" style={{ width: `${state.shapes.away.fit_score * 100}%` }} />
+                  </div>
+                  <div className="text-[9px] text-gray-600 text-right">fit {(state.shapes.away.fit_score * 100).toFixed(0)}%</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Centre: pitch + narrative + controls */}
+        <div className="flex-1 min-w-0 flex flex-col gap-2">
           <div className="relative rounded-lg overflow-hidden border border-gray-700">
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 z-10">
@@ -86,7 +169,6 @@ export default function App() {
             <PitchView state={state} homeTeamId={homeId} />
           </div>
 
-          {/* Narrative */}
           {selectedMatchId && (
             <NarrativeLowerThird
               matchId={selectedMatchId}
@@ -96,7 +178,6 @@ export default function App() {
             />
           )}
 
-          {/* Replay controls */}
           <ReplayControls
             match={selectedMatch}
             minute={minute}
@@ -110,39 +191,30 @@ export default function App() {
           />
         </div>
 
-        {/* Right column: timeline + evidence */}
-        <div className="w-72 flex flex-col gap-4 flex-shrink-0">
+        {/* Right sidebar: timeline + storylines + evidence */}
+        <div className="w-64 flex-shrink-0 flex flex-col gap-3">
           <ProbabilityTimeline
             predictions={predictions}
             currentMinute={minute}
+            homeName={homeName}
+            awayName={awayName}
           />
 
-          {/* Shape info */}
-          {state && (
-            <div className="bg-gray-900 rounded-lg p-3 border border-gray-700 text-sm">
-              <div className="text-gray-400 text-xs mb-2 uppercase tracking-wider">Shapes</div>
-              <div className="flex justify-between mb-1">
-                <span className="text-blue-400 font-medium">{homeId}</span>
-                <span className="text-gray-300">{state.shapes.home.in_possession}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-red-400 font-medium">{awayId}</span>
-                <span className="text-gray-300">{state.shapes.away.in_possession}</span>
-              </div>
-            </div>
-          )}
+          <StorylinePanel
+            facts={facts}
+            homeTeamId={homeId}
+            awayTeamId={awayId}
+          />
 
-          {/* Evidence button */}
           <button
             onClick={() => setEvidenceOpen(true)}
-            className="w-full py-2 rounded-lg border border-gray-600 text-gray-300 hover:bg-gray-800 text-sm font-medium"
+            className="w-full py-2 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-200 text-xs font-medium transition-colors"
           >
-            Evidence ({Object.keys(facts).length} facts)
+            Evidence vault ({Object.keys(facts).length} facts)
           </button>
         </div>
       </div>
 
-      {/* Evidence drawer overlay */}
       <EvidenceDrawer
         facts={facts}
         homeTeamId={homeId}

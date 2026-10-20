@@ -1,4 +1,3 @@
-import React from 'react'
 import { Fact } from '../types'
 
 interface EvidenceDrawerProps {

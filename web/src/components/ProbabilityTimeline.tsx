@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   LineChart,
   Line,
@@ -6,6 +5,7 @@ import {
   YAxis,
   ReferenceLine,
   Tooltip,
+  Legend,
   ResponsiveContainer,
 } from 'recharts'
 import { PredictionPoint } from '../types'
@@ -13,43 +13,52 @@ import { PredictionPoint } from '../types'
 interface ProbabilityTimelineProps {
   predictions: PredictionPoint[]
   currentMinute: number
+  homeName?: string
+  awayName?: string
 }
 
 export default function ProbabilityTimeline({
   predictions,
   currentMinute,
+  homeName = 'Home',
+  awayName = 'Away',
 }: ProbabilityTimelineProps) {
   return (
-    <div
-      className="rounded-lg p-3"
-      style={{ background: '#111827', height: 180 }}
-    >
-      <div className="text-xs text-gray-400 mb-1">Next-goal probability</div>
-      <ResponsiveContainer width="100%" height={140}>
-        <LineChart data={predictions} margin={{ top: 4, right: 8, bottom: 4, left: -20 }}>
+    <div className="rounded-lg p-3 border border-gray-700" style={{ background: '#111827' }}>
+      <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Next-goal probability</div>
+      <ResponsiveContainer width="100%" height={160}>
+        <LineChart data={predictions} margin={{ top: 4, right: 8, bottom: 4, left: -22 }}>
           <XAxis
             dataKey="minute"
             domain={[1, 90]}
-            tick={{ fontSize: 10, fill: '#9ca3af' }}
+            tick={{ fontSize: 9, fill: '#6b7280' }}
             tickCount={10}
           />
           <YAxis
             domain={[0, 1]}
-            tick={{ fontSize: 10, fill: '#9ca3af' }}
-            tickCount={6}
+            tick={{ fontSize: 9, fill: '#6b7280' }}
+            tickCount={5}
+            tickFormatter={v => `${Math.round(v * 100)}%`}
           />
           <Tooltip
-            contentStyle={{ background: '#1f2937', border: 'none', fontSize: 11 }}
+            contentStyle={{ background: '#1f2937', border: '1px solid #374151', fontSize: 10 }}
             labelFormatter={v => `Min ${v}`}
+            formatter={(v: number, name: string) => [`${(v * 100).toFixed(1)}%`, name]}
           />
-          <ReferenceLine x={currentMinute} stroke="#6b7280" strokeDasharray="3 3" />
+          <Legend
+            wrapperStyle={{ fontSize: 9, paddingTop: 4 }}
+            formatter={(_value, entry) => (
+              <span style={{ color: entry.color, fontSize: 9 }}>{entry.value}</span>
+            )}
+          />
+          <ReferenceLine x={currentMinute} stroke="#4b5563" strokeDasharray="3 3" />
           <Line
             type="monotone"
             dataKey="p_next_goal_home"
             stroke="#3b82f6"
             dot={false}
             strokeWidth={2}
-            name="Home"
+            name={homeName}
           />
           <Line
             type="monotone"
@@ -57,7 +66,7 @@ export default function ProbabilityTimeline({
             stroke="#ef4444"
             dot={false}
             strokeWidth={2}
-            name="Away"
+            name={awayName}
           />
           <Line
             type="monotone"
@@ -66,7 +75,7 @@ export default function ProbabilityTimeline({
             dot={false}
             strokeWidth={1.5}
             strokeDasharray="4 2"
-            name="Counter risk"
+            name="Counter"
           />
         </LineChart>
       </ResponsiveContainer>

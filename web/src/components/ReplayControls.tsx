@@ -1,4 +1,3 @@
-import React from 'react'
 import { Match, MatchState } from '../types'
 
 interface ReplayControlsProps {

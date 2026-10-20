@@ -14,9 +14,19 @@ export interface Match {
 export interface Player {
   team_id: string;
   player_id: string;
+  name: string;
   x: number;
   y: number;
   is_gk: boolean;
+}
+
+export interface LiveStatPoint {
+  minute: number;
+  xg_home: number;
+  xg_away: number;
+  shots_home: number;
+  shots_away: number;
+  poss_pct_home: number;
 }
 
 export interface OverloadZone {
