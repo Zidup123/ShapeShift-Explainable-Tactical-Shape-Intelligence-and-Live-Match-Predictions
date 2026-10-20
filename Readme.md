@@ -1,37 +1,41 @@
-# ShapeShift
+# ShapeShift — Explainable Tactical Intelligence
 
-Explainable tactical shape intelligence for football. ShapeShift reads how teams set up in and out of possession, links overloads to xG across a season, and turns that into live match predictions with a plain language narrative.
+Synthetic football data · Microsoft x Premier League hackathon · Deadline 27 Oct 2026
 
-Built for the Microsoft x Premier League *Inside the Game* developer hackathon.
+Built with **Microsoft Foundry** (narrative agent), **Azure Container Apps** (backend), **Azure Static Web Apps** (frontend), **Azure MCP** + our own **MCP server**, and the **Microsoft Agent Framework** (analyst → narrator → verifier pipeline).
 
-> All data is synthetic. Clubs, players and matches are fictional. No real match data is used.
+## Setup
 
-## What it does
+```bash
+pip install -r requirements.txt
+cp .env.example .env          # fill in Azure credentials if available
+python3 generate_season.py --seed 6 --out Data
+python3 src/shapes/detect.py
+python3 src/tactics/run.py
+```
 
-1. **Shape detection:** infers each team's shape in and out of possession from player positions.
-2. **Overload analysis:** measures numerical advantages by zone and links them to shots and xG.
-3. **Live prediction:** updates every minute with next goal probability, expected xG and counter attack risk.
-4. **Narrative agent:** explains each insight, grounded in computed numbers and linked to the events behind it.
+## Run locally
 
-## Status
+```bash
+# Backend
+uvicorn src.api.main:app --reload
 
-| Component | Status |
-|---|---|
-| Synthetic season generator | Done |
-| Shape and overload detection | In progress |
-| Prediction model | Planned |
-| Narrative agent (Azure AI Foundry) | Planned |
-| Match replay dashboard | Planned |
+# Frontend (separate terminal)
+cd web && npm install && npm run dev
+```
 
-## Synthetic data
+Open http://localhost:5173. API at http://localhost:8000.
 
-A fictional league of 8 clubs and 56 matches, with tracking style positions every minute plus passes and shots with xG. Calibrated against real world league averages (about 2.5 goals, 26 shots and 80% pass completion per match). Each club changes shape mid season, and the true shape schedule is included for validating detection.
+## MCP server
 
-    pip install numpy pandas
-    python generate_season.py --seed 6 --out data
+```bash
+python3 src/mcp/server.py
+```
 
-See `README_DATA.md` for the file and column guide.
+## Docker (production)
 
-## Explainability
+```bash
+docker build -t shapeshift . && docker run -p 8000:8000 shapeshift
+```
 
-Every insight links back to the matches, zones and events behind it. Sample sizes and confidence are shown, and the narrative agent only describes numbers computed in code.
+All data is synthetic. See `Data/facts.json` for evidence. Label: **SYNTHETIC DATA**.

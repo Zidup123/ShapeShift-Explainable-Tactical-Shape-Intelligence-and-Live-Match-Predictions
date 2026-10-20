@@ -1,0 +1,9 @@
+numpy
+pandas
+scipy
+scikit-learn
+fastapi
+uvicorn[standard]
+python-dotenv
+openai
+mcp
