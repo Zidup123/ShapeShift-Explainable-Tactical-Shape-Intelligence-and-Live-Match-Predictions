@@ -173,7 +173,7 @@ export default function App() {
                 <span className="text-white text-sm">Loading…</span>
               </div>
             )}
-            <PitchView state={state} homeTeamId={homeId} />
+            <PitchView state={state} homeTeamId={homeId} homeName={homeName} awayName={awayName} />
           </div>
 
           <MatchIntelligence

@@ -15,6 +15,7 @@ export interface Player {
   team_id: string;
   player_id: string;
   name: string;
+  line: 'GK' | 'DEF' | 'MID' | 'FWD';
   x: number;
   y: number;
   is_gk: boolean;

@@ -187,10 +187,11 @@ def _build_state(store: DataStore, match_id: str, minute: int) -> dict:
             break
 
     # Player positions (home as-is, away flipped)
-    # Use players.csv to know who is GK (slot 0 / line == GK)
-    gk_ids: set[str] = set(
-        store.players[store.players["line"] == "GK"]["player_id"].astype(str).tolist()
-    )
+    player_lines: dict[str, str] = {
+        str(r["player_id"]): str(r["line"])
+        for r in store.players.to_dict(orient="records")
+    }
+    gk_ids: set[str] = {pid for pid, ln in player_lines.items() if ln == "GK"}
 
     players: list[dict] = []
     seen: set[str] = set()
@@ -212,6 +213,7 @@ def _build_state(store: DataStore, match_id: str, minute: int) -> dict:
             "team_id": tid,
             "player_id": pid,
             "name": store.player_names.get(pid, pid),
+            "line": player_lines.get(pid, "MID"),
             "x": px,
             "y": py,
             "is_gk": pid in gk_ids,
