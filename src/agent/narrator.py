@@ -1,147 +1,113 @@
 """
-ShapeShift — Narrative Agent
+ShapeShift — Narrator Agent
 
-Two modes:
-  1. Local stub — always available, no credentials needed, used during development
-     and as a fallback when Azure is unreachable.
-  2. Azure mode — uses Azure OpenAI (Microsoft Foundry) when
-     AZURE_OPENAI_ENDPOINT env var is set.
+Receives the match state and the Analyst agent's observation packet, then
+produces a short commentary string. Two modes:
 
-Every narrative string:
-  - Starts with "SYNTHETIC DATA — " (ground rule #7 / #1).
-  - Contains only numbers that appear in facts.json (ground rule #2).
+  1. Local stub  — always available; builds from analyst observations.
+  2. Azure mode  — uses Azure OpenAI (Microsoft Foundry) when
+                   AZURE_OPENAI_ENDPOINT is set. The analyst output is
+                   included in the prompt so the model stays grounded.
+
+Every narrative:
+  - Starts with "SYNTHETIC DATA — " (ground rules #1 / #7).
+  - Contains only numbers that appear in the analyst's numbers dict.
   - Is ≤ 280 characters.
 
-After generation the verifier is run; if numbers are not traceable the stub
-is used instead so the UI always shows a safe, verified string.
+The verifier runs on the output; if it fails the stub is used as fallback.
 """
+from __future__ import annotations
 import os
 import re
+import time
 
 from src.agent.verifier import verify
 
 
 # ---------------------------------------------------------------------------
-# Internal helpers
+# Helpers
 # ---------------------------------------------------------------------------
 
 def _truncate(text: str, max_len: int = 280) -> str:
-    """Hard-truncate to max_len chars, preserving whole words where possible."""
     if len(text) <= max_len:
         return text
-    return text[: max_len - 1].rsplit(" ", 1)[0] + "…"
-
-
-def _relevant_facts(state: dict, facts: dict) -> list[tuple[str, dict]]:
-    """
-    Return (fact_id, fact) pairs that are relevant to the current match state.
-
-    Priority:
-      1. Facts whose claim text mentions either the home or away team id.
-      2. Then any remaining facts ordered by confidence ("ok" before "tentative").
-    """
-    home_id = state.get("home_id", "")
-    away_id = state.get("away_id", "")
-
-    priority: list[tuple[str, dict]] = []
-    rest: list[tuple[str, dict]] = []
-
-    for fid, fact in facts.items():
-        claim = fact.get("claim", "") if isinstance(fact, dict) else ""
-        if home_id in claim or away_id in claim:
-            priority.append((fid, fact))
-        else:
-            rest.append((fid, fact))
-
-    # Sort each group: "ok" before "tentative"
-    def _conf_key(item: tuple) -> int:
-        conf = item[1].get("confidence", "") if isinstance(item[1], dict) else ""
-        return 0 if conf == "ok" else 1
-
-    priority.sort(key=_conf_key)
-    rest.sort(key=_conf_key)
-    return priority + rest
+    return text[:max_len - 1].rsplit(" ", 1)[0] + "…"
 
 
 # ---------------------------------------------------------------------------
-# Stub narrator (no Azure credentials required)
+# Stub narrator — uses analyst observations, no LLM required
 # ---------------------------------------------------------------------------
 
-def _stub_narrative(state: dict, facts: dict) -> str:
-    """
-    Build a short, safe narrative string from the current match state.
-
-    Rules:
-      - Always prefix "SYNTHETIC DATA — ".
-      - Use only numbers that appear in facts.
-      - Keep to ≤ 280 chars.
-      - No invented claims — only reflect what is in the state/facts.
-    """
-    minute: int = state.get("minute", 0)
-    home_id: str = state.get("home_id", "home")
-    away_id: str = state.get("away_id", "away")
-    possession_team: str = state.get("possession_team", "")
-    shapes: dict = state.get("shapes", {})
-    overloads: list = state.get("overloads", [])
-    prediction: dict = state.get("prediction", {})
-
+def _stub(state: dict, analyst: dict) -> str:
+    obs = analyst.get("output", {})
+    nums = analyst.get("numbers", {})
+    angle = obs.get("narrative_angle", "prediction")
+    pred = obs.get("prediction", {})
+    shapes = obs.get("shapes", {})
+    overload = obs.get("overload")
+    minute = nums.get("minute", state.get("minute", 0))
+    home_id = state.get("home_id", "home")
+    away_id = state.get("away_id", "away")
     prefix = "SYNTHETIC DATA — "
 
-    # Early game: focus on shape matchup
-    if minute < 30:
-        home_shape = shapes.get("home", {}).get("in_possession", "N/A")
-        away_shape = shapes.get("away", {}).get("in_possession", "N/A")
-        text = (
-            f"{prefix}Both synthetic teams have settled into their shapes. "
-            f"{home_id} line up {home_shape} in possession, "
-            f"{away_id} use {away_shape}. Min {minute}."
+    if angle == "zone_overload" and overload:
+        zone = overload["zone"].replace("_", " ")
+        adv = overload["advantage"]
+        rest = overload["rest_defence"]
+        team = overload["team"]
+        return _truncate(
+            f"{prefix}Min {minute}: {team} exploit the {zone} zone "
+            f"(+{adv} overload). Only {rest} defenders in rest defence — "
+            f"counter risk {nums.get('counter_risk_pct', 0)}%."
         )
-        return _truncate(text)
 
-    # Mid/late game: try to use a storyline fact (F001–F010)
-    storyline_fids = [f"F{str(i).zfill(3)}" for i in range(1, 11)]
-    relevant = _relevant_facts(state, facts)
-    for fid, fact in relevant:
-        if fid in storyline_fids:
-            claim_snippet = fact.get("claim", "")[:160]
-            text = f"{prefix}{claim_snippet}"
-            return _truncate(text)
-
-    # Overload situation
-    if overloads:
-        # Find the zone with the highest absolute overload
-        best = max(overloads, key=lambda o: abs(o.get("overload", 0)))
-        zone = best.get("zone", "central")
-        ov_val = best.get("overload", 0)
-        direction = "overloading" if ov_val > 0 else "being overloaded in"
-        text = (
-            f"{prefix}Min {minute}: {possession_team} are {direction} "
-            f"the {zone} zone (overload={ov_val}). "
-            f"Counter risk: {round(prediction.get('counter_risk', 0), 2)}."
+    if angle == "shape_mismatch":
+        h_fit = nums.get("home_fit_pct", 0)
+        a_fit = nums.get("away_fit_pct", 0)
+        h_f = shapes.get("home", {}).get("formation_ip", "?")
+        a_f = shapes.get("away", {}).get("formation_ip", "?")
+        return _truncate(
+            f"{prefix}Min {minute}: shape contrast — {home_id} {h_f} "
+            f"at {h_fit}% fit vs {away_id} {a_f} at {a_f}% fit. "
+            f"{pred.get('favoured_team', home_id)} favoured for next goal "
+            f"({pred.get('favoured_pct', 50)}%)."
         )
-        return _truncate(text)
+
+    if angle == "counter_danger":
+        rest = nums.get("rest_defence", 0)
+        cr = nums.get("counter_risk_pct", 0)
+        return _truncate(
+            f"{prefix}Min {minute}: counter-attack risk elevated ({cr}%). "
+            f"Only {rest} defenders behind the ball. "
+            f"xG next 15 — {home_id} {nums.get('xg_next_15_home', 0)}, "
+            f"{away_id} {nums.get('xg_next_15_away', 0)}."
+        )
+
+    if angle == "late_pressure":
+        fav = pred.get("favoured_team", home_id)
+        pct = pred.get("favoured_pct", 50)
+        return _truncate(
+            f"{prefix}Min {minute}: late-game pressure building. "
+            f"{fav} favoured to score next ({pct}%). "
+            f"Counter risk {nums.get('counter_risk_pct', 0)}%."
+        )
 
     # Default: prediction summary
-    p_home = round(prediction.get("p_next_goal_home", 0), 2)
-    p_away = round(prediction.get("p_next_goal_away", 0), 2)
-    text = (
-        f"{prefix}Min {minute}: next-goal probabilities — "
-        f"{home_id} {p_home}, {away_id} {p_away}. "
-        f"Counter risk {round(prediction.get('counter_risk', 0), 2)}."
+    p_h = nums.get("p_next_goal_home", 0.5)
+    p_a = nums.get("p_next_goal_away", 0.5)
+    return _truncate(
+        f"{prefix}Min {minute}: next-goal — "
+        f"{home_id} {p_h:.3f}, {away_id} {p_a:.3f}. "
+        f"Counter risk {nums.get('counter_risk_pct', 0)}%."
     )
-    return _truncate(text)
 
 
 # ---------------------------------------------------------------------------
 # Azure / Foundry narrator
 # ---------------------------------------------------------------------------
 
-def _azure_narrative(state: dict, facts: dict) -> str:
-    """
-    Call Azure OpenAI to generate a narrative. Returns the LLM text on success
-    or raises an exception so the caller can fall back to the stub.
-    """
-    import openai  # imported lazily so missing package doesn't break local mode
+def _azure(state: dict, analyst: dict) -> str:
+    import openai  # lazy import — missing package won't break local mode
 
     endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
     api_key = os.environ.get("AZURE_OPENAI_KEY", "")
@@ -154,81 +120,106 @@ def _azure_narrative(state: dict, facts: dict) -> str:
         api_version=api_version,
     )
 
-    # Gather the most relevant facts to include in the prompt
-    relevant = _relevant_facts(state, facts)[:5]
-    facts_snippet = {fid: f for fid, f in relevant}
+    obs = analyst.get("output", {})
+    nums = analyst.get("numbers", {})
+    relevant_facts = obs.get("relevant_facts", [])
 
     system_prompt = (
-        "You are a football commentary AI for synthetic data only. "
-        "Every number you use MUST appear in the provided facts. "
-        "Always start with 'SYNTHETIC DATA — '. "
-        "Respond in ≤ 280 characters."
+        "You are a football commentary AI generating analysis for SYNTHETIC data only. "
+        "You MUST use only the numbers provided in the analyst packet — never invent numbers. "
+        "Always begin your response with 'SYNTHETIC DATA — '. "
+        "Maximum 280 characters. One or two sentences only."
     )
 
     user_message = (
-        f"Current match state (minute {state.get('minute')}, "
-        f"home={state.get('home_id')}, away={state.get('away_id')}, "
-        f"score={state.get('home_goals')}-{state.get('away_goals')}, "
-        f"possession={state.get('possession_team')}).\n"
-        f"Shapes: {state.get('shapes')}.\n"
-        f"Prediction: {state.get('prediction')}.\n"
-        f"Relevant facts: {facts_snippet}\n"
-        "Write one commentary sentence (≤ 280 chars, start 'SYNTHETIC DATA — ')."
+        f"Analyst observations (minute {nums.get('minute')}):\n"
+        f"- Narrative angle: {obs.get('narrative_angle')}\n"
+        f"- Home shape: {obs.get('shapes', {}).get('home', {})}\n"
+        f"- Away shape: {obs.get('shapes', {}).get('away', {})}\n"
+        f"- Overload: {obs.get('overload')}\n"
+        f"- Prediction: {obs.get('prediction')}\n"
+        f"- Allowed numbers: {nums}\n"
+        f"- Relevant storyline facts: {relevant_facts[:2]}\n\n"
+        "Write one commentary sentence using ONLY numbers from the allowed list above. "
+        "Start with 'SYNTHETIC DATA — '."
     )
 
-    response = client.chat.completions.create(
+    resp = client.chat.completions.create(
         model=deployment,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message},
         ],
-        max_tokens=100,
-        temperature=0.4,
+        max_tokens=120,
+        temperature=0.35,
     )
-
-    return response.choices[0].message.content.strip()
+    return resp.choices[0].message.content.strip()
 
 
 # ---------------------------------------------------------------------------
-# Public API
+# Public — returns a trace step dict
+# ---------------------------------------------------------------------------
+
+def narrate(state: dict, analyst: dict, facts: dict) -> dict:
+    """
+    Generate a commentary string and return a narrator trace step.
+
+    Returns:
+        {agent, status, elapsed_ms, summary, mode, output}
+        where output is the narrative text string.
+    """
+    t0 = time.perf_counter()
+    azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT", "").strip()
+    mode = "azure" if azure_endpoint else "stub"
+    text = ""
+    fallback_used = False
+
+    if azure_endpoint:
+        try:
+            candidate = _azure(state, analyst)
+            result = verify(candidate, facts)
+            if result["pass"]:
+                text = _truncate(candidate)
+            else:
+                text = _stub(state, analyst)
+                fallback_used = True
+                mode = "stub_fallback"
+        except Exception:
+            text = _stub(state, analyst)
+            fallback_used = True
+            mode = "stub_fallback"
+    else:
+        text = _stub(state, analyst)
+
+    elapsed_ms = round((time.perf_counter() - t0) * 1000, 2)
+    char_count = len(text)
+
+    return {
+        "agent": "narrator",
+        "status": "pass",
+        "elapsed_ms": elapsed_ms,
+        "summary": f"{mode} · {char_count} chars",
+        "mode": mode,
+        "fallback_used": fallback_used,
+        "output": text,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Legacy shim — keeps old callers working during transition
 # ---------------------------------------------------------------------------
 
 def generate_narrative(state: dict, facts: dict) -> tuple[str, list[str]]:
-    """
-    Generate a commentary narrative for the given match state.
+    """Backward-compatible wrapper used by any code not yet on the chain."""
+    from src.agent.analyst import analyse
+    home_id = state.get("home_id", "home")
+    away_id = state.get("away_id", "away")
+    analyst_step = analyse(state, facts, home_id, away_id)
+    narrator_step = narrate(state, analyst_step, facts)
+    text: str = narrator_step["output"]
 
-    Args:
-        state: Full match-state dict (as returned by the API state endpoint).
-        facts: The complete facts dict (from facts.json).
-
-    Returns:
-        (narrative_text, fact_ids_used)
-        - narrative_text: A ≤ 280-char string prefixed "SYNTHETIC DATA — ".
-        - fact_ids_used:  List of fact IDs whose numbers appear in the text.
-    """
-    azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT", "").strip()
-
-    narrative: str = ""
-
-    # Try Azure if configured
-    if azure_endpoint:
-        try:
-            candidate = _azure_narrative(state, facts)
-            # Verify: every number must trace to facts
-            result = verify(candidate, facts)
-            if result["pass"]:
-                narrative = _truncate(candidate)
-            else:
-                # Fall back to stub — LLM hallucinated a number
-                narrative = _stub_narrative(state, facts)
-        except Exception:
-            narrative = _stub_narrative(state, facts)
-    else:
-        narrative = _stub_narrative(state, facts)
-
-    # Determine which fact IDs contributed numbers to the narrative
     narrative_numbers: set[str] = set()
-    for raw in re.findall(r"\b\d+(?:\.\d+)?\b", narrative):
+    for raw in re.findall(r"\b\d+(?:\.\d+)?\b", text):
         try:
             narrative_numbers.add(str(round(float(raw), 3)))
         except ValueError:
@@ -245,4 +236,4 @@ def generate_narrative(state: dict, facts: dict) -> tuple[str, list[str]]:
             except (TypeError, ValueError):
                 pass
 
-    return narrative, fact_ids_used
+    return text, fact_ids_used

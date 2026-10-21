@@ -11,7 +11,7 @@ import json
 import re
 
 
-def verify(text: str, facts: dict) -> dict:
+def verify(text: str, facts: dict, extra_numbers: dict | None = None) -> dict:
     """
     Verify that every number in `text` appears in the provided facts.
 
@@ -33,11 +33,18 @@ def verify(text: str, facts: dict) -> dict:
     if not raw_numbers:
         return {"pass": True, "violations": [], "checked": 0}
 
-    # Build a flat set of all fact-number values (as rounded strings for comparison)
+    # Build a flat set of all allowed numeric values:
+    # facts.json values + analyst-computed numbers passed in by the chain
     fact_values: set[str] = set()
     for fact in facts.values():
         numbers_dict = fact.get("numbers", {}) if isinstance(fact, dict) else {}
         for val in numbers_dict.values():
+            try:
+                fact_values.add(str(round(float(val), 3)))
+            except (TypeError, ValueError):
+                pass
+    if extra_numbers:
+        for val in extra_numbers.values():
             try:
                 fact_values.add(str(round(float(val), 3)))
             except (TypeError, ValueError):

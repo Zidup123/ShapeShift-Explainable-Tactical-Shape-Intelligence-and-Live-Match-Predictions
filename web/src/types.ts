@@ -94,3 +94,19 @@ export interface Fact {
   sample_size: number;
   confidence: string;
 }
+
+export interface AgentStep {
+  agent: 'analyst' | 'narrator' | 'verifier'
+  status: 'pass' | 'fail' | 'fallback'
+  elapsed_ms: number
+  summary: string
+  mode: string
+  output: unknown
+  fallback_used?: boolean
+}
+
+export interface NarrativeResult {
+  text: string
+  facts_used: string[]
+  trace: AgentStep[]
+}

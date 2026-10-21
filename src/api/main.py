@@ -17,8 +17,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from src.agent.narrator import generate_narrative
-from src.agent.verifier import verify
+from src.agent import chain as agent_chain
 
 # ---------------------------------------------------------------------------
 # DataStore singleton — loaded once at startup
@@ -420,14 +419,20 @@ def get_narrative(match_id: str, minute: int) -> dict:
     store = get_store()
     try:
         state = _build_state(store, match_id, minute)
-        text, facts_used = generate_narrative(state, store.facts)
+        match_rows = store.matches[store.matches["match_id"] == match_id]
+        match_row = match_rows.iloc[0].to_dict()
+        home_name = store.team_names.get(str(match_row["home_id"]), str(match_row["home_id"]))
+        away_name = store.team_names.get(str(match_row["away_id"]), str(match_row["away_id"]))
+        result = agent_chain.run(state, store.facts, home_name, away_name)
     except HTTPException:
         raise
-    except Exception as exc:
-        # Safe fallback — never expose internal errors to the client
-        text = f"SYNTHETIC DATA — Minute {minute}: match commentary unavailable."
-        facts_used = []
-    return {"text": text, "facts_used": facts_used}
+    except Exception:
+        result = {
+            "text": f"SYNTHETIC DATA — Minute {minute}: commentary unavailable.",
+            "facts_used": [],
+            "trace": [],
+        }
+    return result
 
 
 @app.get("/teams")

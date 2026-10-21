@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { API } from './api'
-import { Match, PredictionPoint, Fact, LiveStatPoint } from './types'
+import { Match, PredictionPoint, Fact, LiveStatPoint, AgentStep } from './types'
 import { useReplay } from './hooks/useReplay'
 import PitchView from './components/PitchView'
 import ReplayControls from './components/ReplayControls'
 import ProbabilityTimeline from './components/ProbabilityTimeline'
 import MatchIntelligence from './components/MatchIntelligence'
+import NarrativeLowerThird from './components/NarrativeLowerThird'
+import AgentTrace from './components/AgentTrace'
 import EvidenceDrawer from './components/EvidenceDrawer'
 import MatchSelector from './components/MatchSelector'
 import MatchStatsBar from './components/MatchStatsBar'
@@ -20,6 +22,8 @@ export default function App() {
   const [facts, setFacts] = useState<Record<string, Fact>>({})
   const [evidenceOpen, setEvidenceOpen] = useState(false)
   const [matchesLoading, setMatchesLoading] = useState(true)
+  const [agentTrace, setAgentTrace] = useState<AgentStep[]>([])
+  const [traceLoading, setTraceLoading] = useState(false)
 
   const { minute, playing, speed, play, pause, seek, setSpeed, state, loading } =
     useReplay(selectedMatchId)
@@ -182,6 +186,16 @@ export default function App() {
             awayName={awayName}
           />
 
+          {selectedMatchId && (
+            <NarrativeLowerThird
+              matchId={selectedMatchId}
+              minute={minute}
+              homeTeamId={homeId}
+              awayTeamId={awayId}
+              onTrace={trace => { setAgentTrace(trace); setTraceLoading(false) }}
+            />
+          )}
+
           <ReplayControls
             match={selectedMatch}
             minute={minute}
@@ -203,6 +217,8 @@ export default function App() {
             homeName={homeName}
             awayName={awayName}
           />
+
+          <AgentTrace trace={agentTrace} loading={traceLoading} />
 
           <StorylinePanel
             facts={facts}

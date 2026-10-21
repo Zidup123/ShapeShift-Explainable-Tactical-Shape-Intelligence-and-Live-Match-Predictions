@@ -7,7 +7,7 @@ export const API = {
   getLiveStats: (id: string) =>
     fetch(`/api/matches/${id}/livestats`).then(r => r.json()),
   getNarrative: (id: string, minute: number) =>
-    fetch(`/api/matches/${id}/narrative/${minute}`).then(r => r.json()),
+    fetch(`/api/matches/${id}/narrative/${minute}`).then(r => r.json()) as Promise<import('./types').NarrativeResult>,
   getFacts: () => fetch('/api/facts').then(r => r.json()),
   getTeamSeason: (id: string) =>
     fetch(`/api/teams/${id}/season`).then(r => r.json()),
