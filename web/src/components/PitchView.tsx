@@ -14,6 +14,7 @@ const H = 520
 const toSvgX = (x: number) => Math.max(0, Math.min(W, (x / 100) * W))
 const toSvgY = (y: number) => Math.max(0, Math.min(H, (y / 100) * H))
 
+// Zone bands used for overload highlighting (y-axis bands across the pitch)
 const ZONE_BANDS: { name: string; yStart: number; yEnd: number }[] = [
   { name: 'L_wide',  yStart: 0,   yEnd: 104 },
   { name: 'L_half',  yStart: 104, yEnd: 208 },
@@ -22,7 +23,7 @@ const ZONE_BANDS: { name: string; yStart: number; yEnd: number }[] = [
   { name: 'R_wide',  yStart: 416, yEnd: 520 },
 ]
 
-// Line draw order: DEF → MID → FWD (within each team's half, sorted by y)
+// Draw formation lines in DEF → MID → FWD order
 const LINE_ORDER = ['DEF', 'MID', 'FWD']
 
 function buildFormationLines(players: Player[], teamId: string): { line: string; points: [number, number][] }[] {
@@ -43,10 +44,11 @@ function buildFormationLines(players: Player[], teamId: string): { line: string;
     }))
 }
 
+// Subtle line colours per phase — opacity kept low to avoid clutter
 const LINE_COLORS: Record<string, string> = {
-  DEF: 'rgba(96,165,250,0.55)',   // blue tint
-  MID: 'rgba(167,139,250,0.55)',  // purple tint
-  FWD: 'rgba(251,146,60,0.55)',   // orange tint
+  DEF: 'rgba(96,165,250,0.4)',
+  MID: 'rgba(167,139,250,0.4)',
+  FWD: 'rgba(251,146,60,0.4)',
 }
 
 export default function PitchView({ state, homeTeamId, homeName, awayName }: PitchViewProps) {
@@ -59,7 +61,7 @@ export default function PitchView({ state, homeTeamId, homeName, awayName }: Pit
   const awayId = state?.players.find(p => p.team_id !== homeTeamId)?.team_id ?? ''
   const awayLines = state && awayId ? buildFormationLines(state.players, awayId) : []
 
-  // Shape labels from state
+  // Formation shape labels
   const homeShape = state?.shapes.home.in_possession ?? ''
   const awayShape = state?.shapes.away.in_possession ?? ''
 
@@ -117,17 +119,6 @@ export default function PitchView({ state, homeTeamId, homeName, awayName }: Pit
       <circle cx="88" cy={H/2} r="3" fill="rgba(255,255,255,0.7)" />
       <circle cx={W - 88} cy={H/2} r="3" fill="rgba(255,255,255,0.7)" />
 
-      {/* ── Attacking direction arrows ── */}
-      {/* Home attacks right → */}
-      <g opacity="0.5">
-        <text x={W/2 - 60} y={H - 10} textAnchor="middle" fontSize={9} fill="#60a5fa" fontWeight="bold">
-          {homeName ?? 'HOME'} ▶
-        </text>
-        <text x={W/2 + 60} y={H - 10} textAnchor="middle" fontSize={9} fill="#f87171" fontWeight="bold">
-          ◀ {awayName ?? 'AWAY'}
-        </text>
-      </g>
-
       {/* ── Formation name labels ── */}
       {homeShape && (
         <text x={W/4} y={22} textAnchor="middle" fontSize={11} fill="rgba(147,197,253,0.8)" fontWeight="bold" letterSpacing="1">
@@ -140,7 +131,19 @@ export default function PitchView({ state, homeTeamId, homeName, awayName }: Pit
         </text>
       )}
 
-      {/* ── Overload zones ── */}
+      {/* ── Possession indicator — small pill badge at top-centre ── */}
+      {state && (
+        <g>
+          <rect x={W/2 - 46} y={4} width={92} height={15} rx={7}
+            fill={isPossHome ? 'rgba(29,78,216,0.75)' : 'rgba(185,28,28,0.75)'} />
+          <text x={W/2} y={12} textAnchor="middle" dominantBaseline="middle"
+            fontSize={10} fill="white" fontWeight="bold">
+            {isPossHome ? '▶' : '◀'} {isPossHome ? (homeName ?? 'HOME') : (awayName ?? 'AWAY')}
+          </text>
+        </g>
+      )}
+
+      {/* ── Overload zones — show only the delta badge (+N / -N) ── */}
       {state?.overloads.map((oz, i) => {
         const band = ZONE_BANDS.find(b => b.name === oz.zone)
         if (!band) return null
@@ -156,60 +159,45 @@ export default function PitchView({ state, homeTeamId, homeName, awayName }: Pit
           <g key={i}>
             <rect x={480} y={band.yStart} width={320} height={band.yEnd - band.yStart}
               fill={fill} stroke={borderColor} strokeWidth="1" />
+            {/* Show only the delta number — no attacker-vs-defender badge */}
             {oz.overload !== 0 && (
-              <g>
-                {/* Attackers vs defenders badge */}
-                <rect x={492} y={midY - 11} width={60} height={22} rx={4}
-                  fill={isOverload ? 'rgba(34,197,94,0.25)' : 'rgba(239,68,68,0.2)'} />
-                <text x={522} y={midY} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={10} fontWeight="bold"
-                  fill={isOverload ? '#86efac' : '#fca5a5'}>
-                  {oz.attackers}v{oz.defenders}
-                </text>
-                {/* Overload delta */}
-                <text x={790} y={midY} textAnchor="end" dominantBaseline="middle"
-                  fontSize={14} fontWeight="bold"
-                  fill={isOverload ? '#4ade80' : '#f87171'}>
-                  {isOverload ? `+${oz.overload}` : oz.overload}
-                </text>
-              </g>
+              <text x={790} y={midY} textAnchor="end" dominantBaseline="middle"
+                fontSize={14} fontWeight="bold"
+                fill={isOverload ? '#4ade80' : '#f87171'}>
+                {isOverload ? `+${oz.overload}` : oz.overload}
+              </text>
             )}
           </g>
         )
       })}
 
-      {/* ── "Attacking third" label ── */}
-      <text x={640} y={36} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,0.25)" letterSpacing="2">
-        ATTACKING THIRD
-      </text>
-
-      {/* ── Formation lines — HOME ── */}
+      {/* ── Formation lines — HOME (thinner, more transparent) ── */}
       {homeLines.map(({ line, points }) => (
         <polyline
           key={`home-line-${line}`}
           points={points.map(([x, y]) => `${x},${y}`).join(' ')}
           fill="none"
           stroke={LINE_COLORS[line]}
-          strokeWidth="2"
+          strokeWidth="1.5"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
       ))}
 
-      {/* ── Formation lines — AWAY ── */}
+      {/* ── Formation lines — AWAY (thinner, more transparent) ── */}
       {awayLines.map(({ line, points }) => {
         const awayLineColors: Record<string, string> = {
-          DEF: 'rgba(252,165,165,0.55)',
-          MID: 'rgba(216,180,254,0.55)',
-          FWD: 'rgba(253,186,116,0.55)',
+          DEF: 'rgba(252,165,165,0.4)',
+          MID: 'rgba(216,180,254,0.4)',
+          FWD: 'rgba(253,186,116,0.4)',
         }
         return (
           <polyline
             key={`away-line-${line}`}
             points={points.map(([x, y]) => `${x},${y}`).join(' ')}
             fill="none"
-            stroke={awayLineColors[line] ?? 'rgba(255,255,255,0.3)'}
-            strokeWidth="2"
+            stroke={awayLineColors[line] ?? 'rgba(255,255,255,0.25)'}
+            strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -290,7 +278,7 @@ export default function PitchView({ state, homeTeamId, homeName, awayName }: Pit
               {slotLabel}
             </text>
 
-            {/* Player name tooltip */}
+            {/* Player name tooltip on hover */}
             {isHovered && p.name && p.name !== p.player_id && (
               <g>
                 <rect x={-38} y={-r - 24} width={76} height={17} rx={3} fill="rgba(0,0,0,0.9)" />
@@ -321,58 +309,22 @@ export default function PitchView({ state, homeTeamId, homeName, awayName }: Pit
         />
       )}
 
-      {/* ── Possession team indicator ── */}
-      {state && (
-        <g>
-          <rect x={W/2 - 52} y={4} width={104} height={16} rx={4} fill="rgba(0,0,0,0.6)" />
-          <text x={W/2} y={12} textAnchor="middle" dominantBaseline="middle"
-            fontSize={9} fill={isPossHome ? '#93c5fd' : '#fca5a5'} fontWeight="bold">
-            {isPossHome ? (homeName ?? 'HOME') : (awayName ?? 'AWAY')} IN POSSESSION
-          </text>
-        </g>
-      )}
-
-      {/* ── Score overlay ── */}
-      {state && (state.home_goals > 0 || state.away_goals > 0) && (
-        <g>
-          <rect x={W - 64} y={4} width={60} height={16} rx={4} fill="rgba(0,0,0,0.65)" />
-          <text x={W - 34} y={12} textAnchor="middle" dominantBaseline="middle"
-            fontSize={10} fill="white" fontWeight="bold">
-            {state.home_goals} – {state.away_goals}
-          </text>
-        </g>
-      )}
-
-      {/* ── Rest defence badge ── */}
+      {/* ── Rest defence badge — only shown when restCount ≤ 4 (vulnerability signal) ── */}
       {(() => {
         const restCount = state?.overloads.reduce((acc, oz) => Math.max(acc, oz.rest_defence ?? 0), 0) ?? 0
-        if (!state || restCount === 0) return null
+        if (!state || restCount === 0 || restCount > 4) return null
         const isLow = restCount <= 3
         return (
           <g>
-            <rect x={10} y={232} width={80} height={18} rx={4}
-              fill={isLow ? 'rgba(239,68,68,0.3)' : 'rgba(0,0,0,0.6)'} />
-            <text x={50} y={241} textAnchor="middle" dominantBaseline="middle"
-              fontSize={9} fill={isLow ? '#fca5a5' : '#d1d5db'}>
+            <rect x={10} y={232} width={70} height={16} rx={4}
+              fill={isLow ? 'rgba(239,68,68,0.3)' : 'rgba(0,0,0,0.55)'} />
+            <text x={45} y={240} textAnchor="middle" dominantBaseline="middle"
+              fontSize={8} fill={isLow ? '#fca5a5' : '#d1d5db'}>
               Rest def: {restCount}{isLow ? ' ⚠' : ''}
             </text>
           </g>
         )
       })()}
-
-      {/* ── Line legend (bottom-left) ── */}
-      {state && (
-        <g>
-          {(['DEF', 'MID', 'FWD'] as const).map((ln, i) => (
-            <g key={ln}>
-              <line x1={10} y1={H - 30 + i * 10} x2={22} y2={H - 30 + i * 10}
-                stroke={LINE_COLORS[ln]} strokeWidth="2" />
-              <text x={26} y={H - 30 + i * 10} dominantBaseline="middle"
-                fontSize={8} fill="rgba(255,255,255,0.45)">{ln}</text>
-            </g>
-          ))}
-        </g>
-      )}
     </svg>
   )
 }
