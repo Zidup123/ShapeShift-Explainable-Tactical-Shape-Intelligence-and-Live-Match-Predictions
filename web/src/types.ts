@@ -51,6 +51,16 @@ export interface Prediction {
   counter_risk: number;
 }
 
+export interface MinuteEvent {
+  type: string
+  team_id: string
+  x: number
+  y: number
+  xg: number | null
+  outcome: string
+  is_counter: boolean
+}
+
 export interface MatchState {
   match_id: string;
   minute: number;
@@ -65,6 +75,7 @@ export interface MatchState {
   shapes: { home: ShapeInfo; away: ShapeInfo };
   overloads: OverloadZone[];
   prediction: Prediction;
+  minute_events: MinuteEvent[];
 }
 
 export interface PredictionPoint {

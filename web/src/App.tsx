@@ -5,7 +5,7 @@ import { useReplay } from './hooks/useReplay'
 import PitchView from './components/PitchView'
 import ReplayControls from './components/ReplayControls'
 import ProbabilityTimeline from './components/ProbabilityTimeline'
-import NarrativeLowerThird from './components/NarrativeLowerThird'
+import MatchIntelligence from './components/MatchIntelligence'
 import EvidenceDrawer from './components/EvidenceDrawer'
 import MatchSelector from './components/MatchSelector'
 import MatchStatsBar from './components/MatchStatsBar'
@@ -63,6 +63,9 @@ export default function App() {
 
   // Prediction at current minute
   const currentPrediction = predictions.find(p => p.minute === minute) ?? predictions[predictions.length - 1] ?? null
+
+  // Recent stats window (last 10 minutes) for momentum calculation
+  const recentStats = liveStats.filter(s => s.minute >= Math.max(1, minute - 10) && s.minute <= minute)
 
   return (
     <div className="min-h-screen" style={{ background: '#0a0a0f' }}>
@@ -169,14 +172,15 @@ export default function App() {
             <PitchView state={state} homeTeamId={homeId} />
           </div>
 
-          {selectedMatchId && (
-            <NarrativeLowerThird
-              matchId={selectedMatchId}
-              minute={minute}
-              homeTeamId={homeId}
-              awayTeamId={awayId}
-            />
-          )}
+          <MatchIntelligence
+            minute={minute}
+            state={state}
+            stats={currentStats}
+            prediction={currentPrediction}
+            recentStats={recentStats}
+            homeName={homeName}
+            awayName={awayName}
+          />
 
           <ReplayControls
             match={selectedMatch}

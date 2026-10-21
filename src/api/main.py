@@ -270,6 +270,23 @@ def _build_state(store: DataStore, match_id: str, minute: int) -> dict:
             "counter_risk": float(pr.get("counter_risk", 0.3)),
         }
 
+    # Events at this minute (shots and counters for pitch markers)
+    ev_df = store.events
+    ev_mask = (ev_df["match_id"] == match_id) & (ev_df["minute"] == minute)
+    minute_events: list[dict] = [
+        {
+            "type": str(r["type"]),
+            "team_id": str(r["team_id"]),
+            "x": float(r.get("x", 50) or 50),
+            "y": float(r.get("y", 50) or 50),
+            "xg": float(r["xg"]) if pd.notna(r.get("xg")) else None,
+            "outcome": str(r.get("outcome", "")),
+            "is_counter": bool(r.get("is_counter", False)),
+        }
+        for _, r in ev_df[ev_mask].iterrows()
+        if str(r["type"]) in ("shot", "counter")
+    ]
+
     return {
         "match_id": match_id,
         "minute": minute,
@@ -284,6 +301,7 @@ def _build_state(store: DataStore, match_id: str, minute: int) -> dict:
         "shapes": {"home": home_shape, "away": away_shape},
         "overloads": overloads_out,
         "prediction": prediction,
+        "minute_events": minute_events,
     }
 
 
