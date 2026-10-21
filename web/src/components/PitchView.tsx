@@ -11,11 +11,10 @@ interface PitchViewProps {
 const W = 800
 const H = 520
 
-const toSvgX = (x: number) => Math.max(0, Math.min(W, (x / 100) * W))
-const toSvgY = (y: number) => Math.max(0, Math.min(H, (y / 100) * H))
+const toX = (x: number) => Math.max(0, Math.min(W, (x / 100) * W))
+const toY = (y: number) => Math.max(0, Math.min(H, (y / 100) * H))
 
-// Zone bands used for overload highlighting (y-axis bands across the pitch)
-const ZONE_BANDS: { name: string; yStart: number; yEnd: number }[] = [
+const ZONE_BANDS = [
   { name: 'L_wide',  yStart: 0,   yEnd: 104 },
   { name: 'L_half',  yStart: 104, yEnd: 208 },
   { name: 'central', yStart: 208, yEnd: 312 },
@@ -23,203 +22,249 @@ const ZONE_BANDS: { name: string; yStart: number; yEnd: number }[] = [
   { name: 'R_wide',  yStart: 416, yEnd: 520 },
 ]
 
-// Draw formation lines in DEF → MID → FWD order
-const LINE_ORDER = ['DEF', 'MID', 'FWD']
+// Smooth cubic bezier spline through an array of [x,y] points
+function smoothCurve(pts: [number, number][]): string {
+  if (pts.length < 2) return ''
+  if (pts.length === 2) return `M${pts[0][0]},${pts[0][1]} L${pts[1][0]},${pts[1][1]}`
+  let d = `M${pts[0][0]},${pts[0][1]}`
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i]
+    const [x1, y1] = pts[i + 1]
+    // Control points at 1/3 and 2/3 between consecutive midpoints
+    const mx = (x0 + x1) / 2
+    const my = (y0 + y1) / 2
+    if (i === 0) {
+      d += ` Q${mx},${my} ${x1},${y1}`
+    } else {
+      d += ` T${x1},${y1}`
+    }
+  }
+  return d
+}
 
-function buildFormationLines(players: Player[], teamId: string): { line: string; points: [number, number][] }[] {
+function buildLines(players: Player[], teamId: string) {
   const outfield = players.filter(p => p.team_id === teamId && !p.is_gk)
   const groups: Record<string, Player[]> = { DEF: [], MID: [], FWD: [] }
   for (const p of outfield) {
     const ln = p.line === 'GK' ? 'DEF' : p.line
     if (groups[ln]) groups[ln].push(p)
   }
-  return LINE_ORDER
+  return (['DEF', 'MID', 'FWD'] as const)
     .filter(ln => groups[ln].length >= 2)
     .map(ln => ({
-      line: ln,
-      // Sort by y so the connecting line runs left-to-right across the pitch
-      points: groups[ln]
-        .sort((a, b) => a.y - b.y)
-        .map(p => [toSvgX(p.x), toSvgY(p.y)] as [number, number]),
+      ln,
+      pts: groups[ln].sort((a, b) => a.y - b.y).map(p => [toX(p.x), toY(p.y)] as [number, number]),
     }))
 }
 
-// Subtle line colours per phase — opacity kept low to avoid clutter
-const LINE_COLORS: Record<string, string> = {
-  DEF: 'rgba(96,165,250,0.4)',
-  MID: 'rgba(167,139,250,0.4)',
-  FWD: 'rgba(251,146,60,0.4)',
-}
-
 export default function PitchView({ state, homeTeamId, homeName, awayName }: PitchViewProps) {
-  const [hoveredPlayer, setHoveredPlayer] = useState<string | null>(null)
+  const [hovered, setHovered] = useState<string | null>(null)
 
-  const possessionTeam = state?.possession_team ?? ''
-  const isPossHome = possessionTeam === homeTeamId
-
-  const homeLines = state ? buildFormationLines(state.players, homeTeamId) : []
+  const possTeam = state?.possession_team ?? ''
+  const isPossHome = possTeam === homeTeamId
   const awayId = state?.players.find(p => p.team_id !== homeTeamId)?.team_id ?? ''
-  const awayLines = state && awayId ? buildFormationLines(state.players, awayId) : []
 
-  // Formation shape labels
+  const homeLines = state ? buildLines(state.players, homeTeamId) : []
+  const awayLines = state && awayId ? buildLines(state.players, awayId) : []
+
   const homeShape = state?.shapes.home.in_possession ?? ''
   const awayShape = state?.shapes.away.in_possession ?? ''
 
   return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      className="w-full"
-      style={{ background: '#1a5c2a', display: 'block' }}
-    >
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full block" style={{ display: 'block' }}>
       <defs>
+        {/* ── Animations ── */}
         <style>{`
-          @keyframes shotPulse {
-            0%   { r: 10; opacity: 0.9; }
-            60%  { r: 26; opacity: 0.45; }
-            100% { r: 38; opacity: 0; }
+          @keyframes shotRing {
+            0%   { r: 8;  opacity: 1; }
+            100% { r: 32; opacity: 0; }
           }
-          .shot-marker { animation: shotPulse 2s ease-out forwards; }
-          @keyframes possGlow {
-            0%, 100% { opacity: 0.35; }
-            50%       { opacity: 0.65; }
+          .shot-ring { animation: shotRing 1.6s ease-out forwards; }
+          @keyframes possBreath {
+            0%, 100% { opacity: 0.4; r: 13; }
+            50%       { opacity: 0.7; r: 15; }
           }
-          .poss-ring { animation: possGlow 1.4s ease-in-out infinite; }
+          .poss-ring { animation: possBreath 1.6s ease-in-out infinite; }
         `}</style>
-        <filter id="glow-home">
-          <feGaussianBlur stdDeviation="3" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+
+        {/* ── Pitch gradient ── */}
+        <linearGradient id="pitch-base" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="#1a6130" />
+          <stop offset="100%" stopColor="#175629" />
+        </linearGradient>
+
+        {/* ── Grass stripe pattern ── */}
+        <pattern id="stripes" x="0" y="0" width="100" height={H} patternUnits="userSpaceOnUse">
+          <rect x="0"  y="0" width="50"  height={H} fill="rgba(0,0,0,0)" />
+          <rect x="50" y="0" width="50"  height={H} fill="rgba(255,255,255,0.03)" />
+        </pattern>
+
+        {/* ── Player gradients ── */}
+        <radialGradient id="grad-home" cx="38%" cy="32%" r="68%">
+          <stop offset="0%"   stopColor="#93c5fd" />
+          <stop offset="100%" stopColor="#1e40af" />
+        </radialGradient>
+        <radialGradient id="grad-away" cx="38%" cy="32%" r="68%">
+          <stop offset="0%"   stopColor="#fca5a5" />
+          <stop offset="100%" stopColor="#991b1b" />
+        </radialGradient>
+        <radialGradient id="grad-gk-home" cx="38%" cy="32%" r="68%">
+          <stop offset="0%"   stopColor="#fde68a" />
+          <stop offset="100%" stopColor="#b45309" />
+        </radialGradient>
+        <radialGradient id="grad-gk-away" cx="38%" cy="32%" r="68%">
+          <stop offset="0%"   stopColor="#d9f99d" />
+          <stop offset="100%" stopColor="#3f6212" />
+        </radialGradient>
+
+        {/* ── Ball gradient ── */}
+        <radialGradient id="grad-ball" cx="35%" cy="30%" r="70%">
+          <stop offset="0%"   stopColor="#ffffff" />
+          <stop offset="65%"  stopColor="#e5e5e5" />
+          <stop offset="100%" stopColor="#b0b0b0" />
+        </radialGradient>
+
+        {/* ── Filters ── */}
+        <filter id="player-shadow" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.5" floodColor="rgba(0,0,0,0.55)" />
         </filter>
-        <filter id="glow-away">
-          <feGaussianBlur stdDeviation="3" result="blur" />
+        <filter id="ball-shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="1" dy="2" stdDeviation="2" floodColor="rgba(0,0,0,0.5)" />
+        </filter>
+        <filter id="line-glow" x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur" />
           <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
       </defs>
 
       {/* ── Pitch surface ── */}
-      <rect x="0" y="0" width={W} height={H} fill="#1a5c2a" />
-      {/* Subtle stripe bands */}
-      {[0, 2, 4, 6].map(i => (
-        <rect key={i} x={i * 100} y="0" width="100" height={H} fill="rgba(0,0,0,0.04)" />
-      ))}
+      <rect x="0" y="0" width={W} height={H} fill="url(#pitch-base)" />
+      <rect x="0" y="0" width={W} height={H} fill="url(#stripes)" />
 
       {/* ── Pitch markings ── */}
-      <rect x="2" y="2" width={W - 4} height={H - 4} fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-      <line x1={W/2} y1="2" x2={W/2} y2={H - 2} stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" />
-      <circle cx={W/2} cy={H/2} r="73" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="1.5" />
-      <circle cx={W/2} cy={H/2} r="4" fill="rgba(255,255,255,0.7)" />
-      {/* Left box */}
-      <rect x="2" y="130" width="120" height="260" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" />
-      <rect x="2" y="195" width="40" height="130" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" />
-      <rect x="0" y="221" width="4" height="78" fill="rgba(255,255,255,0.8)" />
-      {/* Right box */}
-      <rect x={W - 122} y="130" width="120" height="260" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" />
-      <rect x={W - 42} y="195" width="40" height="130" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" />
-      <rect x={W - 4} y="221" width="4" height="78" fill="rgba(255,255,255,0.8)" />
+      {/* Outer border */}
+      <rect x="2" y="2" width={W-4} height={H-4} fill="none"
+        stroke="rgba(255,255,255,0.75)" strokeWidth="2" rx="1" />
+      {/* Halfway */}
+      <line x1={W/2} y1="2" x2={W/2} y2={H-2}
+        stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" />
+      {/* Centre circle */}
+      <circle cx={W/2} cy={H/2} r="73" fill="none"
+        stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" />
+      <circle cx={W/2} cy={H/2} r="3.5" fill="rgba(255,255,255,0.7)" />
+      {/* Left penalty area */}
+      <rect x="2" y="130" width="120" height="260" fill="none"
+        stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" />
+      <rect x="2" y="195" width="40" height="130" fill="none"
+        stroke="rgba(255,255,255,0.5)" strokeWidth="1" />
+      <rect x="0" y="222" width="5" height="76" fill="rgba(255,255,255,0.75)" />
+      {/* Right penalty area */}
+      <rect x={W-122} y="130" width="120" height="260" fill="none"
+        stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" />
+      <rect x={W-42} y="195" width="40" height="130" fill="none"
+        stroke="rgba(255,255,255,0.5)" strokeWidth="1" />
+      <rect x={W-5} y="222" width="5" height="76" fill="rgba(255,255,255,0.75)" />
       {/* Penalty spots */}
-      <circle cx="88" cy={H/2} r="3" fill="rgba(255,255,255,0.7)" />
-      <circle cx={W - 88} cy={H/2} r="3" fill="rgba(255,255,255,0.7)" />
+      <circle cx="88" cy={H/2} r="3" fill="rgba(255,255,255,0.6)" />
+      <circle cx={W-88} cy={H/2} r="3" fill="rgba(255,255,255,0.6)" />
+      {/* Arc arcs */}
+      <path d={`M 122,195 A 73,73 0 0 1 122,${H-195}`}
+        fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
+      <path d={`M ${W-122},195 A 73,73 0 0 0 ${W-122},${H-195}`}
+        fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
 
-      {/* ── Formation name labels ── */}
+      {/* ── Formation labels ── */}
       {homeShape && (
-        <text x={W/4} y={22} textAnchor="middle" fontSize={11} fill="rgba(147,197,253,0.8)" fontWeight="bold" letterSpacing="1">
+        <text x={W/4} y={20} textAnchor="middle" fontSize={11}
+          fill="rgba(147,197,253,0.75)" fontWeight="700" letterSpacing="1.5">
           {homeShape}
         </text>
       )}
       {awayShape && (
-        <text x={3*W/4} y={22} textAnchor="middle" fontSize={11} fill="rgba(252,165,165,0.8)" fontWeight="bold" letterSpacing="1">
+        <text x={3*W/4} y={20} textAnchor="middle" fontSize={11}
+          fill="rgba(252,165,165,0.75)" fontWeight="700" letterSpacing="1.5">
           {awayShape}
         </text>
       )}
 
-      {/* ── Possession indicator — small pill badge at top-centre ── */}
-      {state && (
-        <g>
-          <rect x={W/2 - 46} y={4} width={92} height={15} rx={7}
-            fill={isPossHome ? 'rgba(29,78,216,0.75)' : 'rgba(185,28,28,0.75)'} />
-          <text x={W/2} y={12} textAnchor="middle" dominantBaseline="middle"
-            fontSize={10} fill="white" fontWeight="bold">
-            {isPossHome ? '▶' : '◀'} {isPossHome ? (homeName ?? 'HOME') : (awayName ?? 'AWAY')}
-          </text>
-        </g>
-      )}
-
-      {/* ── Overload zones — show only the delta badge (+N / -N) ── */}
+      {/* ── Overload zones ── */}
       {state?.overloads.map((oz, i) => {
         const band = ZONE_BANDS.find(b => b.name === oz.zone)
-        if (!band) return null
+        if (!band || oz.overload === 0) return null
+        const isPos = oz.overload > 0
         const midY = (band.yStart + band.yEnd) / 2
-        const isOverload = oz.overload > 0
-        const isUnderload = oz.overload < 0
-        const fill = isOverload
-          ? 'rgba(34,197,94,0.22)'
-          : isUnderload ? 'rgba(239,68,68,0.18)' : 'transparent'
-        const borderColor = isOverload ? 'rgba(34,197,94,0.4)' : isUnderload ? 'rgba(239,68,68,0.35)' : 'transparent'
-
         return (
           <g key={i}>
             <rect x={480} y={band.yStart} width={320} height={band.yEnd - band.yStart}
-              fill={fill} stroke={borderColor} strokeWidth="1" />
-            {/* Show only the delta number — no attacker-vs-defender badge */}
-            {oz.overload !== 0 && (
-              <text x={790} y={midY} textAnchor="end" dominantBaseline="middle"
-                fontSize={14} fontWeight="bold"
-                fill={isOverload ? '#4ade80' : '#f87171'}>
-                {isOverload ? `+${oz.overload}` : oz.overload}
-              </text>
-            )}
+              fill={isPos ? 'rgba(34,197,94,0.18)' : 'rgba(239,68,68,0.15)'}
+              stroke={isPos ? 'rgba(74,222,128,0.35)' : 'rgba(248,113,113,0.3)'}
+              strokeWidth="1" />
+            <text x={786} y={midY} textAnchor="end" dominantBaseline="middle"
+              fontSize={15} fontWeight="800"
+              fill={isPos ? '#4ade80' : '#f87171'}
+              style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }}>
+              {isPos ? `+${oz.overload}` : oz.overload}
+            </text>
           </g>
         )
       })}
 
-      {/* ── Formation lines — HOME (thinner, more transparent) ── */}
-      {homeLines.map(({ line, points }) => (
-        <polyline
-          key={`home-line-${line}`}
-          points={points.map(([x, y]) => `${x},${y}`).join(' ')}
-          fill="none"
-          stroke={LINE_COLORS[line]}
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      ))}
-
-      {/* ── Formation lines — AWAY (thinner, more transparent) ── */}
-      {awayLines.map(({ line, points }) => {
-        const awayLineColors: Record<string, string> = {
-          DEF: 'rgba(252,165,165,0.4)',
-          MID: 'rgba(216,180,254,0.4)',
-          FWD: 'rgba(253,186,116,0.4)',
+      {/* ── Formation lines — smooth bezier curves ── */}
+      {homeLines.map(({ ln, pts }) => {
+        const colors: Record<string, string> = {
+          DEF: 'rgba(96,165,250,0.55)',
+          MID: 'rgba(167,139,250,0.5)',
+          FWD: 'rgba(251,146,60,0.5)',
         }
         return (
-          <polyline
-            key={`away-line-${line}`}
-            points={points.map(([x, y]) => `${x},${y}`).join(' ')}
+          <path key={`hl-${ln}`}
+            d={smoothCurve(pts)}
             fill="none"
-            stroke={awayLineColors[line] ?? 'rgba(255,255,255,0.25)'}
-            strokeWidth="1.5"
+            stroke={colors[ln]}
+            strokeWidth="2"
             strokeLinecap="round"
-            strokeLinejoin="round"
+            filter="url(#line-glow)"
+          />
+        )
+      })}
+      {awayLines.map(({ ln, pts }) => {
+        const colors: Record<string, string> = {
+          DEF: 'rgba(252,165,165,0.55)',
+          MID: 'rgba(216,180,254,0.5)',
+          FWD: 'rgba(253,186,116,0.5)',
+        }
+        return (
+          <path key={`al-${ln}`}
+            d={smoothCurve(pts)}
+            fill="none"
+            stroke={colors[ln]}
+            strokeWidth="2"
+            strokeLinecap="round"
+            filter="url(#line-glow)"
           />
         )
       })}
 
       {/* ── Shot event markers ── */}
       {state?.minute_events?.filter(e => e.type === 'shot').map((ev, i) => {
-        const cx = toSvgX(ev.team_id === homeTeamId ? ev.x : 100 - ev.x)
-        const cy = toSvgY(ev.team_id === homeTeamId ? ev.y : 100 - ev.y)
+        const cx = toX(ev.team_id === homeTeamId ? ev.x : 100 - ev.x)
+        const cy = toY(ev.team_id === homeTeamId ? ev.y : 100 - ev.y)
         const isGoal = ev.outcome === 'goal'
         const color = ev.team_id === homeTeamId ? '#60a5fa' : '#f87171'
         return (
-          <g key={`shot-${i}-${state.minute}`}>
-            <circle className="shot-marker" cx={cx} cy={cy} r={10}
-              fill="none" stroke={isGoal ? '#facc15' : color}
-              strokeWidth={isGoal ? 3 : 2} />
+          <g key={`s${i}-${state.minute}`}>
+            <circle className="shot-ring" cx={cx} cy={cy} r={8}
+              fill="none"
+              stroke={isGoal ? '#fbbf24' : color}
+              strokeWidth={isGoal ? 2.5 : 1.5} />
             {isGoal && (
               <>
-                <rect x={cx - 22} y={cy - 30} width={44} height={16} rx={3} fill="#facc15" />
-                <text x={cx} y={cy - 21} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={10} fill="#000" fontWeight="bold">GOAL</text>
+                <circle cx={cx} cy={cy} r={10}
+                  fill="rgba(251,191,36,0.2)" stroke="#fbbf24" strokeWidth="1.5" />
+                <rect x={cx-20} y={cy-26} width={40} height={14} rx={3}
+                  fill="#fbbf24" />
+                <text x={cx} y={cy-19} textAnchor="middle" dominantBaseline="middle"
+                  fontSize={8.5} fill="#000" fontWeight="800">GOAL</text>
               </>
             )}
           </g>
@@ -228,66 +273,71 @@ export default function PitchView({ state, homeTeamId, homeName, awayName }: Pit
 
       {/* ── Counter markers ── */}
       {state?.minute_events?.filter(e => e.is_counter).map((ev, i) => {
-        const cx = toSvgX(ev.team_id === homeTeamId ? ev.x : 100 - ev.x)
-        const cy = toSvgY(ev.team_id === homeTeamId ? ev.y : 100 - ev.y)
+        const cx = toX(ev.team_id === homeTeamId ? ev.x : 100 - ev.x)
+        const cy = toY(ev.team_id === homeTeamId ? ev.y : 100 - ev.y)
         return (
-          <g key={`counter-${i}-${state.minute}`}>
-            <rect x={cx - 26} y={cy - 20} width={52} height={14} rx={3} fill="rgba(249,115,22,0.85)" />
-            <text x={cx} y={cy - 12} textAnchor="middle" dominantBaseline="middle"
-              fontSize={9} fill="white" fontWeight="bold">COUNTER</text>
+          <g key={`c${i}-${state.minute}`}>
+            <rect x={cx-28} y={cy-20} width={56} height={14} rx={3}
+              fill="rgba(249,115,22,0.9)" />
+            <text x={cx} y={cy-13} textAnchor="middle" dominantBaseline="middle"
+              fontSize={8} fill="white" fontWeight="700" letterSpacing="0.5">COUNTER</text>
           </g>
         )
       })}
 
       {/* ── Players ── */}
-      {state?.players.map((p) => {
-        const cx = toSvgX(p.x)
-        const cy = toSvgY(p.y)
+      {state?.players.map(p => {
+        const cx = toX(p.x)
+        const cy = toY(p.y)
         const isHome = p.team_id === homeTeamId
-        const isPossessing = p.team_id === possessionTeam
-        const color = isHome ? '#3b82f6' : '#ef4444'
-        const r = p.is_gk ? 14 : 10
-        const slotMatch = p.player_id.match(/(\d+)$/)
-        const slotLabel = slotMatch ? String(parseInt(slotMatch[1], 10)) : '?'
-        const isHovered = hoveredPlayer === p.player_id
+        const isPoss = p.team_id === possTeam
+        const r = p.is_gk ? 13 : 10
+        const gradId = p.is_gk
+          ? (isHome ? 'grad-gk-home' : 'grad-gk-away')
+          : (isHome ? 'grad-home' : 'grad-away')
+        const slot = p.player_id.match(/(\d+)$/)
+        const label = slot ? String(parseInt(slot[1], 10)) : '?'
+        const isHov = hovered === p.player_id
 
         return (
-          <g
-            key={p.player_id}
-            style={{
-              transform: `translate(${cx}px, ${cy}px)`,
-              transition: 'transform 0.65s ease-in-out',
-            }}
-            onMouseEnter={() => setHoveredPlayer(p.player_id)}
-            onMouseLeave={() => setHoveredPlayer(null)}
+          <g key={p.player_id}
+            style={{ transform: `translate(${cx}px,${cy}px)`, transition: 'transform 0.65s ease-in-out' }}
+            onMouseEnter={() => setHovered(p.player_id)}
+            onMouseLeave={() => setHovered(null)}
           >
-            {/* Possession glow ring */}
-            {isPossessing && !p.is_gk && (
-              <circle className="poss-ring" r={r + 6} fill="none"
-                stroke={isHome ? '#93c5fd' : '#fca5a5'} strokeWidth="2" />
+            {/* Possession breathing ring */}
+            {isPoss && !p.is_gk && (
+              <circle className="poss-ring" r={r + 5} fill="none"
+                stroke={isHome ? 'rgba(147,197,253,0.7)' : 'rgba(252,165,165,0.7)'}
+                strokeWidth="1.5" />
             )}
 
-            <circle r={r} fill={color}
-              stroke={isHovered ? '#facc15' : 'white'}
-              strokeWidth={isHovered ? 2.5 : 1.5}
-              filter={isPossessing ? (isHome ? 'url(#glow-home)' : 'url(#glow-away)') : undefined}
-            />
-            <text textAnchor="middle" dominantBaseline="middle" y={1}
-              fontSize={p.is_gk ? 9 : 8} fill="white" fontWeight="bold"
-              style={{ pointerEvents: 'none' }}>
-              {slotLabel}
+            {/* Drop shadow + filled circle */}
+            <circle r={r} fill={`url(#${gradId})`}
+              stroke={isHov ? '#fbbf24' : 'rgba(255,255,255,0.7)'}
+              strokeWidth={isHov ? 2 : 1.2}
+              filter="url(#player-shadow)" />
+
+            {/* Shirt number */}
+            <text textAnchor="middle" dominantBaseline="middle" y={0.5}
+              fontSize={p.is_gk ? 8.5 : 7.5} fill="white" fontWeight="700"
+              style={{ pointerEvents: 'none', textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+              {label}
             </text>
 
-            {/* Player name tooltip on hover */}
-            {isHovered && p.name && p.name !== p.player_id && (
+            {/* Hover tooltip */}
+            {isHov && (
               <g>
-                <rect x={-38} y={-r - 24} width={76} height={17} rx={3} fill="rgba(0,0,0,0.9)" />
-                <text x={0} y={-r - 15} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={9} fill="white" style={{ pointerEvents: 'none' }}>
-                  {p.name.length > 12 ? p.name.slice(0, 12) + '…' : p.name}
+                <rect x={-40} y={-r-26} width={80} height={20} rx={4}
+                  fill="rgba(15,15,20,0.95)" stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
+                <text x={0} y={-r-19} textAnchor="middle" dominantBaseline="middle"
+                  fontSize={9} fill="white" fontWeight="600"
+                  style={{ pointerEvents: 'none' }}>
+                  {p.name.length > 14 ? p.name.slice(0, 14) + '…' : p.name}
                 </text>
-                <text x={0} y={-r - 5} textAnchor="middle" dominantBaseline="middle"
-                  fontSize={8} fill={isHome ? '#93c5fd' : '#fca5a5'} style={{ pointerEvents: 'none' }}>
+                <text x={0} y={-r-9} textAnchor="middle" dominantBaseline="middle"
+                  fontSize={7.5} fill={isHome ? '#93c5fd' : '#fca5a5'}
+                  style={{ pointerEvents: 'none' }}>
                   {p.line}
                 </text>
               </g>
@@ -299,28 +349,43 @@ export default function PitchView({ state, homeTeamId, homeName, awayName }: Pit
       {/* ── Ball ── */}
       {state && (
         <circle
-          cx={toSvgX(state.ball_x)}
-          cy={toSvgY(state.ball_y)}
+          cx={toX(state.ball_x)}
+          cy={toY(state.ball_y)}
           r={7}
-          fill="white"
-          stroke="#555"
-          strokeWidth="1.5"
+          fill="url(#grad-ball)"
+          stroke="rgba(80,80,80,0.6)"
+          strokeWidth="1"
+          filter="url(#ball-shadow)"
           style={{ transition: 'cx 0.65s ease-in-out, cy 0.65s ease-in-out' }}
         />
       )}
 
-      {/* ── Rest defence badge — only shown when restCount ≤ 4 (vulnerability signal) ── */}
+      {/* ── Possession pill ── */}
+      {state && (
+        <g>
+          <rect x={W/2-50} y={4} width={100} height={16} rx={8}
+            fill={isPossHome ? 'rgba(30,64,175,0.85)' : 'rgba(153,27,27,0.85)'}
+            stroke={isPossHome ? 'rgba(96,165,250,0.4)' : 'rgba(248,113,113,0.4)'}
+            strokeWidth="0.75" />
+          <text x={W/2} y={12} textAnchor="middle" dominantBaseline="middle"
+            fontSize={9.5} fill="rgba(255,255,255,0.95)" fontWeight="600" letterSpacing="0.3">
+            {isPossHome ? '▶' : '◀'} {(isPossHome ? (homeName ?? 'HOME') : (awayName ?? 'AWAY')).toUpperCase()}
+          </text>
+        </g>
+      )}
+
+      {/* ── Rest defence warning ── */}
       {(() => {
-        const restCount = state?.overloads.reduce((acc, oz) => Math.max(acc, oz.rest_defence ?? 0), 0) ?? 0
-        if (!state || restCount === 0 || restCount > 4) return null
-        const isLow = restCount <= 3
+        const rest = state?.overloads.reduce((a, o) => Math.max(a, o.rest_defence ?? 0), 0) ?? 0
+        if (!state || rest > 4) return null
         return (
           <g>
-            <rect x={10} y={232} width={70} height={16} rx={4}
-              fill={isLow ? 'rgba(239,68,68,0.3)' : 'rgba(0,0,0,0.55)'} />
-            <text x={45} y={240} textAnchor="middle" dominantBaseline="middle"
-              fontSize={8} fill={isLow ? '#fca5a5' : '#d1d5db'}>
-              Rest def: {restCount}{isLow ? ' ⚠' : ''}
+            <rect x={8} y={H/2-10} width={82} height={20} rx={4}
+              fill={rest <= 2 ? 'rgba(220,38,38,0.7)' : 'rgba(245,158,11,0.6)'}
+              stroke="rgba(255,255,255,0.15)" strokeWidth="0.5" />
+            <text x={49} y={H/2} textAnchor="middle" dominantBaseline="middle"
+              fontSize={9} fill="white" fontWeight="600">
+              {rest <= 2 ? '⚠ ' : ''}Rest def: {rest}
             </text>
           </g>
         )
